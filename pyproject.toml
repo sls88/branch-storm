@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "branch-storm"
+version = "0.1.0"
+
+description = "clm_core package"
+authors = ["Dmitrii Zhitin <3271707@gmail.com>"]
+
+packages = [{ include = "src", to = "branch-storm" }]
+
+[tool.poetry.dependencies]
+python = "3.9.*"
+typing-extensions = "4.12.2"
+
+[tool.poetry.dev-dependencies]
+pytest = "^8.0.0"
+pytest-xdist = "^3.5.0"
+pytest-cov = "~2.11.1"
+
+[tool.pytest.ini_options]
+norecursedirs = [
+    "dist",
+    "build",
+    "docs",
+    ".git",
+    "__pycache__"
+]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
