@@ -10,6 +10,7 @@ packages = [{ include = "src", to = "branch-storm" }]
 [tool.poetry.dependencies]
 python = "3.9.*"
 typing-extensions = "4.12.2"
+typeguard = "4.4.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^8.0.0"
