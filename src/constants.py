@@ -1,0 +1,1 @@
+STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS = "stop_all_further_operations_with_success"
