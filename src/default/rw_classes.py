@@ -1,5 +1,4 @@
 from dataclasses import dataclass, Field, field
-from typing import NoReturn
 
 
 @dataclass
@@ -25,7 +24,7 @@ class Values:
             self.__dataclass_fields__[key] = field(default=value)
         self.__dict__[key] = value
 
-    def __check_data_structure(self, value) -> NoReturn:
+    def __check_data_structure(self, value) -> None:
         if any([isinstance(value, frozenset),
                 isinstance(value, tuple)]):
             for pos in value:

@@ -1,67 +1,11 @@
 from inspect import Parameter, signature, ismethod, isfunction, isclass
 from typing import Any, Dict, Optional, Tuple, Callable, Type, Union
 
-from src.processor.initialization import get_args_kwargs
-from src.operation_branch import Operation
+from src.utils.common import find_rw_inst
 from src.utils.formatters import error_formatter, LoggerBuilder
 
 
 log = LoggerBuilder().build()
-
-
-def process_one_operation(
-        operation: Union[Operation, Callable, Type],
-        init_data: Tuple,
-        rw_inst: Dict[str, Any],
-        name_stack: Optional[str] = None,
-        op_name: Optional[str] = None) -> Tuple[Optional[Any], str, Optional[Tuple]]:
-
-    # print(8888888888, operation, init_data, rw_inst, name_stack, op_name)
-    stack_message = get_message(name_stack, op_name)
-    if not any([isinstance(operation, Operation), isfunction(operation), isclass(operation)]):
-        raise TypeError(f"{stack_message}Operation must be a class Operation, "
-                        f"function or class. Passed entity: {operation}")
-
-    if isfunction(operation):
-        operation = Operation(operation).func()
-    elif isclass(operation):
-        operation = Operation(operation).init().meth()
-
-    if not operation._func_args_kwargs and not operation._init_args_kwargs and not operation._meth_args_kwargs:
-        operation = operation.func()
-
-    instance, rem_data = (operation._instance, None) if operation._instance else (None, None)
-    if isinstance(instance, str):
-        operation._instance = get_instace_from_str(stack_message, instance, rw_inst)
-
-    method_name = get_method_name(operation, stack_message)
-    stack = get_object_name(operation, method_name, name_stack, op_name)
-
-    if operation._func_args_kwargs:
-        params_wo_self = {name: par for name, par in get_params_wo_self(
-            operation._class_or_func, False).items()}
-        args, kwargs, rem_data = get_args_kwargs(params_wo_self, *operation._func_args_kwargs, init_data)
-        kwargs = expand_special_kwargs(kwargs, rw_inst)
-        args = expand_special_args(args, rw_inst)
-        return call_func_or_method(stack, operation._class_or_func, args, kwargs), stack, rem_data
-    elif operation._init_args_kwargs:
-        params_wo_self = {name: par for name, par in get_params_wo_self(
-            operation._class_or_func, True).items()}
-        args, kwargs, rem_data = get_args_kwargs(params_wo_self, *operation._init_args_kwargs, init_data)
-        kwargs = expand_special_kwargs(kwargs, rw_inst)
-        args = expand_special_args(args, rw_inst)
-        instance = initialize_class(stack, operation._class_or_func, args, kwargs)
-
-    if instance and not operation._meth_args_kwargs:
-        return instance, stack, rem_data
-    else:
-        method = instance.__getattribute__(method_name)
-        params_wo_self = get_params_wo_self(method.__func__) if ismethod(method) \
-            else get_params_wo_self(method, remove_first=False)
-        args, kwargs, rem_data = get_args_kwargs(params_wo_self, *operation._func_args_kwargs, init_data)
-        kwargs = expand_special_kwargs(kwargs, rw_inst)
-        args = expand_special_args(args, rw_inst)
-        return call_func_or_method(stack, operation._class_or_func, args, kwargs), stack, rem_data
 
 
 def get_params_wo_self(func: Callable, remove_first: bool = True) -> Dict[str, Parameter]:
@@ -88,73 +32,34 @@ def get_params_wo_self(func: Callable, remove_first: bool = True) -> Dict[str, P
     parameters = signature(func).parameters
     if remove_first:
         param = parameters.copy()
+        if not param:
+            return param
         param.pop(list(param)[0])
         return param
     return parameters.copy()
 
 
-def get_message(name_stack: Optional[str], obj_name: Optional[str]) -> str:
-    if name_stack is None and obj_name is None:
-        return ""
-    elif name_stack is None:
-        return f"Call stack: {obj_name}. "
-    elif obj_name is None:
-        return f"Call stack: {name_stack}. "
-    return f"Call stack: {name_stack} -> {obj_name}. "
-
-
-def initialize_class(obj_name: str, cls: Type,
+def initialize_class(stack: str, cls: Type,
                      args: Tuple, kwargs: Dict[str, Any]) -> Any:
     try:
         instance = cls(*args, **kwargs)
     except Exception as exc:
         error_formatter(
-            exc, f"Call stack: {obj_name}. An error occurred when trying to initialize class {cls}")
+            exc, f"Stack: {stack}. An error occurred when trying to initialize class {cls}")
         raise exc
-    log.info(f"Call stack: {obj_name}. The class: {cls.__name__} has been successfully initialized.")
+    log.info(f"Stack: {stack}. The class: {cls.__name__} has been successfully initialized.")
 
     return instance
 
 
-def find_method_to_run(stack_message: str, class_type: Type) -> str:
-    """Find and return the name of the runnable class method_name.
-
-    If class has 0 or more than 1 runnable methods throw ValueError.
-    """
-    all_class_methods = dir(class_type)
-    method_to_run = list(
-        filter(lambda x: not (x.startswith("_") or x.startswith("__")), all_class_methods))
-    len_methods = len(method_to_run)
-    if len_methods != 1:
-        raise TypeError(
-            f"{stack_message}Object type {class_type} has {len_methods} runnable methods. "
-            f"The name of a runnable method_name must not begin with '_' or '__' and there must "
-            f"be only one in the class.{f' Find methods {method_to_run}' if method_to_run else ''}")
-    return method_to_run[0]
-
-
-def call_func_or_method(obj_name: str, func: Callable,
+def call_func_or_method(stack: str, func: Callable,
                         args: Tuple, kwargs: Dict[str, Any]) -> Any:
     try:
         execution_result = func(*args, **kwargs)
     except Exception as exc:
-        error_formatter(exc, f"Call stack: {obj_name}. An error occurred while calling entity.")
+        error_formatter(exc, f"Stack: {stack}. An error occurred while calling entity.")
         raise exc
     return execution_result
-
-
-def find_rw_inst(string: str, rw_inst: Dict[str, Any]) -> Optional[Type]:
-    """Return a special class if the string parameter is equal its alias.
-
-    rw_inst = {"ja": JobArgs, "ac": AnotherClass}
-    string = "ja" -> JobArgs()
-
-    rw_inst = {"ac": AnotherClass}
-    string = "ja" -> None
-    """
-    for alias in rw_inst:
-        if string == alias:
-            return rw_inst[alias]
 
 
 def expand_special_kwargs(kwargs: Dict[str, Any], rw_inst: Dict[str, Any]) -> Dict[str, Any]:
@@ -262,30 +167,3 @@ def get_instace_from_str(stack_message: str, string: str, rw_inst: Dict[str, Any
         result = result.__getattribute__(field)
 
     return result
-
-
-def get_method_name(operation: Operation, stack_message: str) -> Optional[str]:
-    if not operation._func_args_kwargs:
-        clss = type(operation._instance) if operation._instance else operation._class_or_func
-        return operation._method if operation._method else find_method_to_run(stack_message, clss)
-    return None
-
-
-def get_object_name(operation: Operation,
-                    method_name: Optional[str],
-                    name_stack: Optional[str],
-                    op_name: Optional[str]) -> str:
-    end_part_name = ""
-    if operation._init_args_kwargs and not operation._meth_args_kwargs:
-        end_part_name = "(instance)"
-    elif method_name:
-        end_part_name = f".{method_name}"
-
-    if name_stack is None and op_name is None:
-        return operation._class_or_func.__name__ + end_part_name
-    elif name_stack is None:
-        return op_name
-    elif op_name is None:
-        op_name = operation._class_or_func.__name__ + end_part_name
-        return f"{name_stack} -> {op_name}"
-    return f"{name_stack} -> {op_name}"

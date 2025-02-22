@@ -5,7 +5,11 @@ from typing_extensions import Generic, TypeVarTuple, Unpack
 TT = TypeVarTuple('TT')
 T = TypeVar('T')
 
-class ArgTypeContainer(Generic[Unpack[TT]]):
+class MandatoryArgTypeContainer(Generic[Unpack[TT]]):
+    pass
+
+
+class OptionalArgTypeContainer(Generic[Unpack[TT]]):
     pass
 
 
