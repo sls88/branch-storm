@@ -4,8 +4,7 @@ from typing import Tuple
 
 import pytest
 from src.operation import Operation as op, CallObject as obj
-from src.processor.initialization import GetPosArg
-from src.type_containers import MandatoryArgTypeContainer as mat
+from src.type_containers import MandatoryArgTypeContainer as m
 
 
 @dataclass
@@ -37,9 +36,9 @@ def get_aaa_bbb_rw_instances(arg1: AAA, arg2: BBB) -> Tuple[AAA, BBB]:
 
 
 def test_process_one_object_get_aaa_bbb_fields_value_in_func_kwargs():
-    operation = op(obj(get_aaa_bbb_fields)("aaa.aaa_field", arg2="aaa.second_field.bbb_field"))
+    operation = op(obj(get_aaa_bbb_fields)(m("aaa.aaa_field"), arg2=m("aaa.second_field.bbb_field")[int]))
     operation._set_branch_stack("stack")
-    actual_result = operation.run((1, 2), {"aaa": AAA()})
+    actual_result = operation.rw_inst({"aaa": AAA()}).run((1, 2))
     actual_op_stack = operation._operation_stack
 
     assert actual_result == ((15, 0), (1, 2))
@@ -48,27 +47,27 @@ def test_process_one_object_get_aaa_bbb_fields_value_in_func_kwargs():
 
 def test_process_one_object_get_aaa_bbb_instances_in_func_kwargs():
     aaa = AAA()
-    operation = op(obj(get_aaa_bbb_rw_instances)(arg1="aaa", arg2="aaa.second_field"))
-    actual_result = operation.run((), {"aaa": aaa})
+    operation = op(obj(get_aaa_bbb_rw_instances)("aaa", arg2=m("aaa.second_field")[BBB]))
+    actual_result = operation.rw_inst({"aaa": aaa}).run(())
 
     assert actual_result == ((aaa, aaa.second_field), None)
 
 
-def test_process_one_object_get_aaa_bbb_instances_in_func_kwargs_first_pos_not_expanded():
+def test_process_one_object_get_aaa_bbb_instances_in_func_kwargs_first_pos_expanded_from_kwargs():
     aaa = AAA()
-    operation = op(obj(get_aaa_bbb_rw_instances)("aaa", arg2="aaa.second_field"))
-    actual_result = operation.run((), {"aaa": aaa})
+    operation = op(obj(get_aaa_bbb_rw_instances)(arg1="aaa", arg2=m("aaa.second_field")))
+    actual_result = operation.rw_inst({"aaa": aaa}).run(())
 
-    assert actual_result == (("aaa", aaa.second_field), None)
+    assert actual_result == ((aaa, aaa.second_field), None)
 
 
 def test_process_one_object_get_rw_kwargs_typehint_in_class():
     aaa = AAA()
     bbb = BBB()
     operation = op(obj(OneRunMethodBound)(
-        arg1="aa", arg2=GetPosArg(mat[int], 1)).method(200, arg4="bb"))
+        "aa", arg2=m[int]).method(200, arg4="bb"))
     operation._set_branch_stack("stack")
-    actual_result = operation.run((100,), {"aa": aaa, "bb": bbb})
+    actual_result = operation.rw_inst({"aa": aaa, "bb": bbb}).run((100,))
     actual_op_stack = operation._operation_stack
 
     assert actual_result == ((aaa, 100, 200, bbb), None)
@@ -81,8 +80,8 @@ def get_and_pass_one_arg(arg: int) -> int:
 
 def test_process_one_object_get_rw_args_in_func():
     aaa = AAA()
-    operation = op(obj(get_and_pass_one_arg)(arg="aa.second_field.bbb_field"))
-    actual_result = operation.run((), {"aa": aaa})
+    operation = op(obj(get_and_pass_one_arg)(m("aa.second_field.bbb_field")[int]))
+    actual_result = operation.rw_inst({"aa": aaa}).run(())
 
     assert actual_result == (0, None)
 
@@ -101,9 +100,9 @@ class Storage:
 
 
 def test_process_one_object_get_rw_args_in_class():
-    operation = op(obj("s.f").method(arg2="a.second_field.bbb_field"))
+    operation = op(obj("s.f").method(arg2=m("a.second_field.bbb_field")))
     operation._set_branch_stack("stack")
-    actual_result = operation.run((), {"a": AAA(), "s": Storage()})
+    actual_result = operation.rw_inst({"a": AAA(), "s": Storage()}).run(())
     actual_op_stack = operation._operation_stack
 
     assert actual_result == ((1, 0), None)
@@ -111,7 +110,7 @@ def test_process_one_object_get_rw_args_in_class():
 
 
 def test_process_one_object_get_rw_args_in_class_no_such_class_neg():
-    operation = op(obj("inc_class.f").method(arg2="a.second_field.bbb_field"))
+    operation = op(obj("inc_class.f").method(arg2=m("a.second_field.bbb_field")[int]))
     operation._set_branch_stack("stack")
     with pytest.raises(
             TypeError,
@@ -121,10 +120,10 @@ def test_process_one_object_get_rw_args_in_class_no_such_class_neg():
 
 
 def test_process_one_object_get_rw_args_in_class_incorrect_method_neg():
-    operation = op(obj("s.incorrect").method(arg2="a.second_field.bbb_field"))
+    operation = op(obj("s.incorrect").method(m("a.second_field.bbb_field")))
     operation._set_branch_stack("stack")
     with pytest.raises(
             AttributeError,
             match='Operation: stack -> External instance from string: "s.incorrect". '
                   'The RW class "Storage" does not have attribute "incorrect"'):
-        operation.run((), {"a": AAA(), "s": Storage()})
+        operation.rw_inst({"a": AAA(), "s": Storage()}).run(())

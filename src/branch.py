@@ -1,14 +1,21 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
-from src.default.assign_results import assign
+from src.constants import STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
 from src.launch_operations.data_parsing import ResultParser
-from src.launch_operations.errors import EmptyDataError, IncorrectParameterError, EmptyBranchError
+from src.launch_operations.errors import EmptyDataError, IncorrectParameterError, EmptyBranchError, \
+    RemainingArgsFoundError
 from src.launch_operations.launch_utils import to_tuple
 from src.launch_operations.rw_inst_updater import RwInstUpdater
-from src.operation import Operation
+from src.operation import Operation, CallObject, Assigner, OptionsChecker
 from src.utils.common import renew_def_rw_inst
+from src.utils.formatters import LoggerBuilder
 
-BranchType = Union[Operation, "Branch", Tuple[Union[Operation, "Branch"], ...]]
+
+log = LoggerBuilder().build()
+
+
+BranchType = Union[Operation, "Branch", CallObject, Tuple[
+    Union[Operation, "Branch", CallObject], ...]]
 
 
 class Branch:
@@ -16,7 +23,8 @@ class Branch:
         self._operations: Optional[Tuple] = None
         self._current_operation: Optional[Union[Branch, Operation]] = None
 
-        self._br_name: str = Branch._get_br_name(br_name)
+        self._br_name: Optional[str] = None
+        self.set_br_name(br_name)
         self._def_args: Optional[Tuple] = None
         self._assign: Optional[Tuple[str]] = None
         self._all_operations_must_be_executed: Optional[bool] = None
@@ -29,6 +37,7 @@ class Branch:
 
         self._branch_stack = "INITIAL RUN"
         self._operation_stack = "INITIAL RUN"
+        self._last_op_stack = "INITIAL RUN"
         self._is_it_operation = False
         self._delayed_return = None
 
@@ -65,14 +74,26 @@ class Branch:
         self._raise_err_if_empty_data = True
         return self
 
-    @staticmethod
-    def _get_br_name(br_name: Optional[str]) -> str:
-        return "BRANCH NAME NOT DEFINED" \
+    def get_br_name(self) -> str:
+        return self._br_name
+
+    def set_br_name(self, br_name: Optional[str]) -> None:
+        self._br_name = "BRANCH NAME NOT DEFINED" \
             if br_name is None else br_name
 
     def _get_current_operation(self) -> None:
         if self._operations:
             self._current_operation = self._operations[0]
+            if not any([
+                isinstance(self._current_operation, Branch),
+                isinstance(self._current_operation, Operation),
+                isinstance(self._current_operation, CallObject)]):
+                raise TypeError(
+                    f"Last successful operation: {self._last_op_stack}.\n"
+                    f"Processing object can be only Branch, Operation, CallObject.")
+
+            if isinstance(self._current_operation, CallObject):
+                self._current_operation = Operation(self._current_operation)
 
             self._is_it_operation = True if isinstance(
                 self._current_operation, Operation) else False
@@ -81,7 +102,7 @@ class Branch:
                 self._operations) == 1 else self._operations[1:]
         else:
             raise EmptyBranchError(
-                f"Operation: {self._operation_stack} (last successful operation).\n"
+                f"Operation: {self._operation_stack}.\n"
                 f"Running a branch without operations is impossible.")
 
     def _get_curr_op_params(self):
@@ -104,6 +125,9 @@ class Branch:
             self._br_name = "BRANCH NAME NOT DEFINED"
         if stack is not None:
             self._branch_stack = f"{stack} -> {self._br_name}"
+
+    def _set_last_op_stack(self, stack: str) -> None:
+        self._last_op_stack = stack
 
     def _set_rw_inst(self, rw_inst: Dict[str, Any]) -> None:
         self._rw_inst = rw_inst
@@ -129,8 +153,8 @@ class Branch:
         if stop_operations and self._all_operations_must_be_executed:
             raise IncorrectParameterError(
                 f'\nOperation: {self._operation_stack}.\n'
-                f'The previous operation returned the string\n'
-                f'"stop_all_further_operations_with_success"\n'
+                f'The previous operation returned the constant\n'
+                f'"stop_all_further_operations_with_success_result"\n'
                 f'meaning a forced stop of all further operations,\n'
                 f'but it was found that the current branch has the\n'
                 f'option all_operations_must_be_executed=True applied.\n'
@@ -150,11 +174,14 @@ class Branch:
         self._get_current_operation()
         self._get_curr_op_params()
         input_data = self._get_initial_run_params(input_data)
+        OptionsChecker.check_name(self._br_name, self._last_op_stack)
         self._set_branch_stack()
         if self._is_it_operation:
+            self._current_operation._set_last_op_stack(self._last_op_stack)
             self._current_operation._set_branch_stack(self._branch_stack)
             self._operation_stack = self._current_operation._update_stack()
         else:
+            self._current_operation._set_last_op_stack(self._last_op_stack)
             self._operation_stack = f"{self._branch_stack}(branch)"
 
         self._update_rw_inst(self._rw_inst_from_option)
@@ -165,27 +192,31 @@ class Branch:
             self._end_branch_check()
             return None
         sd, self._rw_inst = ResultParser.sort_data(to_tuple(input_data), self._rw_inst)
-        if sd.stop_all_further_operations_with_success:
+        if sd.stop_all_operations:
             self._end_branch_check(
-                sd.stop_all_further_operations_with_success)
-            return None
+                sd.stop_all_operations)
+            log.info(
+                f'Operation: {self._operation_stack}.\n'
+                f'The operation returned the constant '
+                f'"stop_all_further_operations_with_success_result"\n'
+                f'meaning forced stop of all further operations. '
+                f'The branch will return this constant as a result.')
+            return STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
         input_data = sd.data
 
         if self._is_it_operation:
             self._current_operation._update_rw_inst(self._rw_inst)
-            # print("111op", self._operation_stack, self._rw_inst["val"].__dict__)
-            # self._current_operation.renew_def_rw_inst()
             self._operation_stack = self._current_operation._get_op_stack()
             if self._current_operation._hide_init_inf_from_logs is None:
                 self._current_operation._hide_init_inf_from_logs = self._hide_init_inf_from_logs
 
             result, rem_args = self._current_operation.run(input_data)
-            print("Remaining_args/result", result, rem_args)
 
             if self._operations is None and self._delayed_return is not None:
                 self._current_operation._stop_distribution = True
 
-            if self._delayed_return is not None and not self._current_operation._stop_distribution or self._distribute_input_data:
+            if self._delayed_return is not None and not \
+                    self._current_operation._stop_distribution or self._distribute_input_data:
                 self._distribute_input_data = False
                 self._current_operation._distribute_input_data = True
 
@@ -196,12 +227,23 @@ class Branch:
                 self._delayed_return = (*self._delayed_return, *to_tuple(result))
                 result = () if rem_args is None else rem_args
             if self._current_operation._stop_distribution:
-                print(999999)
                 result = self._delayed_return[0] if len(
                     self._delayed_return) == 1 else self._delayed_return
                 self._delayed_return = None
 
-            print(111111111, self._delayed_return, result)
+            if rem_args is not None and not any([
+                self._delayed_return is not None,
+                self._distribute_input_data]):
+                rem_args_hidden = [type(arg) for arg in rem_args]
+                raise RemainingArgsFoundError(
+                    f"Operation: {self._operation_stack}.\n"
+                    f"After executing the operation, data was detected that was not involved\n"
+                    f"in the initialization/call. Len {len(rem_args)}; Their types: {rem_args_hidden}\n"
+                    f"If this is planned, use the burn_rem_args option or use the distribution operation\n"
+                    f"(distributed_input_data ... stop_distribution options).\n"
+                    f"After stopping the distribution, the remaining arguments are also not allowed.")
+
+            self._set_last_op_stack(self._current_operation._get_op_stack())
 
             if self._operations is None:
                 return result
@@ -209,9 +251,14 @@ class Branch:
             return result
 
         if self._current_operation._all_operations_must_be_executed is None:
-            self._current_operation._all_operations_must_be_executed = self._all_operations_must_be_executed
+            self._current_operation._all_operations_must_be_executed = \
+                self._all_operations_must_be_executed
         if self._current_operation._hide_init_inf_from_logs is None:
-            self._current_operation._hide_init_inf_from_logs = self._hide_init_inf_from_logs
+            self._current_operation._hide_init_inf_from_logs = \
+                self._hide_init_inf_from_logs
+        if self._distribute_input_data:
+            self._distribute_input_data = False
+            self._current_operation._distribute_input_data = True
         self._current_operation._set_branch_stack(self._branch_stack)
         self._current_operation._set_rw_inst(self._rw_inst)
         self._current_operation.renew_def_rw_inst()
@@ -219,12 +266,14 @@ class Branch:
         result = self._current_operation.run(input_data)
         if self._operations is None:
             if self._assign is not None:
-                kw = {key: self._rw_inst[key.split(".")[0]] for key in self._assign}
-                return assign(*to_tuple(result), **kw)
+                return Assigner.do_assign(
+                    self._operation_stack, self._assign,
+                    self._rw_inst, result)
             return result
 
         result = self.run(result)
         if self._assign is not None:
-            kw = {key: self._rw_inst[key.split(".")[0]] for key in self._assign}
-            return assign(*to_tuple(result), **kw)
+            return Assigner.do_assign(
+                self._operation_stack, self._assign,
+                self._rw_inst, result)
         return result

@@ -63,15 +63,15 @@ class RwInstUpdater:
         if rw_inst:
             all_aliases_str = all(isinstance(alias, str) for alias in list(rw_inst))
             if not all_aliases_str:
-                raise TypeError(f"Stack: {stack}. "
+                raise TypeError(f"Operation: {stack}. "
                                 f"All aliases should be string type.")
 
             all_values_are_not_classes = all(type(value) != type for value in list(rw_inst.values()))
             if not all_values_are_not_classes:
-                raise TypeError(f"Stack: {stack}. "
+                raise TypeError(f"Operation: {stack}. "
                                 f"All values must be initialized instances of classes.")
 
             rw_types = list(map(lambda x: type(x), rw_inst.values()))
             if len(rw_types) != len(set(rw_types)):
-                raise TypeError(f"Stack: {stack}. "
+                raise TypeError(f"Operation: {stack}. "
                                 f"All special classes must be unique.")

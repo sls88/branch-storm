@@ -3,7 +3,7 @@ from typing import Any, Union
 
 import pytest
 
-from src.constants import STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS
+from src.constants import STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
 from src.launch_operations.errors import EmptyDataError, IncorrectParameterError
 from src.operation import Operation as op, CallObject as obj
 from src.branch import Branch as br
@@ -24,7 +24,7 @@ def write(arg: int) -> None:
 def read_return_none(): return None
 def transform_return_none(arg: int): return None
 def return_stop_constant(arg: int) -> Union[Any, str]:
-    return STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS
+    return STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
 
 
 def test_all_operations_must_be_executed_false_complete():
@@ -133,7 +133,29 @@ def test_return_stop_further_operations_constant():
             op(obj(write)(m[int]))
         ].run()
 
-    assert actual_result is None
+    assert actual_result == STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
+    global counter
+    assert counter == 0
+    counter = 0
+
+
+def test_return_stop_further_operations_constant_several_branches_with_def_args():
+    actual_result = br("trusted_to_enriched")[
+            br("br1")[
+                op(obj(read)()),
+                op(obj(transform)(m[int])),
+                op(obj(return_stop_constant)(m[int])),
+                op(obj(transform)(m[int])),
+                op(obj(write)(m[int]))
+            ],
+            br("br2")[
+                op(obj(read)()),
+                op(obj(transform)(m[int])),
+                op(obj(write)(m[int]))
+            ].def_args(),
+        ].run()
+
+    assert actual_result == STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
     global counter
     assert counter == 0
     counter = 0

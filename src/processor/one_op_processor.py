@@ -1,6 +1,8 @@
-from inspect import Parameter, signature, ismethod, isfunction, isclass
-from typing import Any, Dict, Optional, Tuple, Callable, Type, Union
+from inspect import Parameter, signature
+from typing import Any, Dict, Tuple, Callable, Type
 
+from src.constants import PARAMETER_WAS_NOT_EXPANDED
+from src.processor.initialization import is_it_init_arg_type
 from src.utils.common import find_rw_inst
 from src.utils.formatters import error_formatter, LoggerBuilder
 
@@ -45,9 +47,9 @@ def initialize_class(stack: str, cls: Type,
         instance = cls(*args, **kwargs)
     except Exception as exc:
         error_formatter(
-            exc, f"Stack: {stack}. An error occurred when trying to initialize class {cls}")
+            exc, f"Operation: {stack}. An error occurred when trying to initialize class {cls}")
         raise exc
-    log.info(f"Stack: {stack}. The class: {cls.__name__} has been successfully initialized.")
+    log.info(f"Operation: {stack}. The class: {cls.__name__} has been successfully initialized.")
 
     return instance
 
@@ -57,7 +59,7 @@ def call_func_or_method(stack: str, func: Callable,
     try:
         execution_result = func(*args, **kwargs)
     except Exception as exc:
-        error_formatter(exc, f"Stack: {stack}. An error occurred while calling entity.")
+        error_formatter(exc, f"Operation: {stack}. An error occurred while calling entity.")
         raise exc
     return execution_result
 
@@ -77,25 +79,41 @@ def expand_special_kwargs(kwargs: Dict[str, Any], rw_inst: Dict[str, Any]) -> Di
         field2: Class1 = Class1()
 
     rw_inst = {"ja": JobArgs()}
-    kwargs = {"arg1": "ja.field1", "arg2": "ja.field2.field3", "arg3": "Class1.field3"}
-    return_result = {"arg1": 1, "arg2": 5, "arg3": "Class1.field3"}
+    kwargs = {"arg1": MandatoryArgTypeContainer("ja.field1")[int],
+              "arg2": MandatoryArgTypeContainer("ja.field2.field3")[int],
+              "arg3": MandatoryArgTypeContainer("Class1.field3")[int]}
 
-    rw_inst = {"arg1": JobArgs()}
+    return_result
+        inside type containers:
+            {"arg1": MATC().expanded_param = 1,
+             "arg2": MATC().expanded_param = 5,
+             "arg3": MATC().expanded_param = "The parameter was not expanded."}
+
+    rw_inst = {"ja": JobArgs()}
     kwargs = {"arg1": "ja"}
     return_result = {"arg1": JobArgs()}
     """
-    for par_name, par in kwargs.items():
-        if isinstance(par, str):
-            splited_par = par.split(".")
-            result = find_rw_inst(splited_par[0], rw_inst)
+    for param_name, param in kwargs.items():
+        if is_it_init_arg_type(param) and param.param_link:
+            splited_param = param.param_link.split(".")
+            result = find_rw_inst(splited_param[0], rw_inst)
             if result:
-                if len(splited_par) == 1:
-                    kwargs[par_name] = result
+                if len(splited_param) == 1:
+                    param.par_value = result
+                    kwargs[param_name] = param
                 else:
-                    for field in splited_par[1:]:
+                    for field in splited_param[1:]:
                         result = result.__getattribute__(field)
+                    param.par_value = result
+                    kwargs[param_name] = param
+            else:
+                param.par_value = PARAMETER_WAS_NOT_EXPANDED
+                kwargs[param_name] = param
 
-                    kwargs[par_name] = result
+        elif isinstance(param, str):
+            if param in rw_inst:
+                kwargs[param_name] = rw_inst[param]
+
     return kwargs
 
 
@@ -113,22 +131,44 @@ def expand_special_args(args: Tuple, rw_inst: Dict[str, Any]) -> Tuple:
         field2: BB = BB()
 
     rw_inst={"aa": AA()}
-    args = ("aa.field2.field3", "aa.field1", "AA", "aa", "aa.field3")
+    args = (MandatoryArgTypeContainer("aa.field2.field3")[str],
+            MandatoryArgTypeContainer("aa.field1")[int],
+            "AA",
+            "aa.field1",
+            "aa",
+            MandatoryArgTypeContainer("aa.field_not_exist")[Any])
 
-    return_result = ("two", 1, "AA", "aa", "aa.field3")
+    return_result
+        inside type containers:
+            (MATC().expanded_param = "two",
+             MATC().expanded_param = 1,
+             "AA",
+             "aa.field1",
+             AA(),
+             MATC().expanded_param = "The parameter was not expanded.")
     """
     new_args = []
-    for par in args:
-        if isinstance(par, str):
-            splited_par = par.split(".")
-            result = find_rw_inst(splited_par[0], rw_inst)
+    for arg in args:
+        if is_it_init_arg_type(arg) and arg.param_link:
+            splited_arg = arg.param_link.split(".")
+            result = find_rw_inst(splited_arg[0], rw_inst)
 
-            if result and len(splited_par) > 1:
-                for field in splited_par[1:]:
+            if result and len(splited_arg) > 1:
+                for field in splited_arg[1:]:
                     result = result.__getattribute__(field)
-                new_args.append(result)
+                arg.par_value = result
+                new_args.append(arg)
                 continue
-        new_args.append(par)
+            else:
+                arg.par_value = PARAMETER_WAS_NOT_EXPANDED
+                new_args.append(arg)
+
+        elif isinstance(arg, str):
+            if arg in rw_inst:
+                new_args.append(rw_inst[arg])
+                continue
+
+        new_args.append(arg)
 
     return tuple(new_args)
 

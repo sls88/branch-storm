@@ -1,30 +1,30 @@
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, Callable, Dict
 
-from src.constants import STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS
+from src.constants import STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
 
 
 @dataclass
 class SortedData:
     data: Tuple
     rw_instances: Optional[List[Any]] = None
-    stop_all_further_operations_with_success: bool = False
+    stop_all_operations: bool = False
 
     def separate_rw_instances(self, rw_inst: Dict[str, Any]) -> None:
         result = ResultParser.split_data_by_condition(
             self.data, rw_inst, ResultParser.is_it_rw_instance)
         self.data, self.rw_instances = result
 
-    def separate_stop_all_further_operations_with_success(self, rw_inst: Dict[str, Any]) -> None:
+    def separate_all_operations_constant(self, rw_inst: Dict[str, Any]) -> None:
         result = ResultParser.split_data_by_condition(
             self.data, rw_inst, ResultParser.is_it_stop_message)
-        self.data, stop_all_further_operations_with_success = result
+        self.data, stop_all_operations = result
 
-        if stop_all_further_operations_with_success:
-            self.stop_all_further_operations_with_success = True
+        if stop_all_operations:
+            self.stop_all_operations = True
 
     def update_instances(self, rw_inst: Dict[str, Any]) -> Dict[str, Any]:
-        """Add rw_instance in List if not exist or reassign if exist."""
+        """Add rw_instance in List if not exist or reassign existed."""
         for new_instance in self.rw_instances:
             for name, old_rw in rw_inst.items():
                 if isinstance(new_instance, type(old_rw)):
@@ -46,7 +46,7 @@ class ResultParser:
         """
         sd = SortedData(data=data)
         sd.separate_rw_instances(rw_inst)
-        sd.separate_stop_all_further_operations_with_success(rw_inst)
+        sd.separate_all_operations_constant(rw_inst)
         new_rw_inst = sd.update_instances(rw_inst)
 
         return sd, new_rw_inst
@@ -68,7 +68,7 @@ class ResultParser:
 
     @staticmethod
     def is_it_rw_instance(obj: Any, rw_inst: Dict[str, Any]) -> bool:
-        """Check if the obj is an rw_instance.
+        """Check if the obj is a rw_instance.
 
         Return True if yes.
         """
@@ -77,8 +77,8 @@ class ResultParser:
 
     @staticmethod
     def is_it_stop_message(obj: Any, _: Dict[str, Any]) -> bool:
-        """Check if the obj is an stop message: "stop_all_further_operations_with_success".
+        """Check if the obj is a stop message: "stop_all_further_operations_with_success_result".
 
         Return True if yes.
         """
-        return isinstance(obj, str) and obj == STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS
+        return isinstance(obj, str) and obj == STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT

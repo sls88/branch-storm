@@ -14,9 +14,9 @@ class DistributionError(Exception):
     pass
 
 
-class AssignmentError(Exception):
+class RemainingArgsFoundError(DistributionError):
     pass
 
 
-class ArgumentError(Exception):
+class AssignmentError(Exception):
     pass

@@ -6,7 +6,6 @@ import pytest
 from src.default.rw_classes import Values, Variables
 from src.operation import Operation as op, CallObject as obj
 from src.branch import Branch as br
-from src.processor.initialization import GetPosArg
 from src.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
 from src.utils.common import renew_def_rw_inst
 
@@ -75,16 +74,16 @@ def test_renew_rw_inst():
 def test_assign_default_rw_class_vals_vars_via_opr_assign():
     actual_result = br("trusted_to_enriched")[
         op(obj(return_one)()).assign("val.store_one"),
-        op(obj(return_one)()),
-        op(obj(get_and_pass_args)(m[int])),
+        obj(return_one)(),
+        obj(get_and_pass_args)(m[int]),
         br("br1")[
-            op(obj(get_and_pass_args)(m[int])),
+            obj(get_and_pass_args)(m[int]),
             op(obj(get_arg_and_get_rw_class_value_via_object_kwargs)(
-            m[int], rw_value="val.store_one")).assign(
+            m[int], rw_value=m("val.store_one")[int])).assign(
             "var.first_var", "var.second_var"),
         ],
-        op(obj(get_and_return_tuple_two_values)(arg1="var.first_var", arg2="var.second_var")),
-        op(obj(get_and_return_tuple_two_values)(m[int], m[int]))
+        obj(get_and_return_tuple_two_values)(arg1=m("var.first_var")[int], arg2=m("var.second_var")[int]),
+        obj(get_and_return_tuple_two_values)(m[int], m[int])
     ].run()
 
     assert actual_result == (1, 1)
@@ -97,12 +96,13 @@ def test_assign_default_rw_class_vals_vars_via_opr_neg():
         br("trusted_to_enriched")[
             br("br1")[
                 op(obj(return_one)()).assign("val.store_one"),
-                op(obj(return_one)()),
-                op(obj(get_and_pass_args)(m[int])),
+                obj(return_one)(),
+                obj(get_and_pass_args)(m[int]),
             ],
             op(obj(get_arg_and_get_rw_class_value_via_object_kwargs)(
-                m[int], rw_value="val.store_one")).assign(
+                m[int], rw_value=m("val.store_one")[int])).assign(
                 "var.first_var", "var.second_var"),
-            op(obj(get_and_return_tuple_two_values)(arg1="var.first_var", arg2="var.second_var")),
-            op(obj(get_and_return_tuple_two_values)(m[int], m[int]))
+            obj(get_and_return_tuple_two_values)(arg1=m("var.first_var")[int],
+                                                 arg2=m("var.second_var")[int]),
+            obj(get_and_return_tuple_two_values)(m[int], m[int])
         ].run()
