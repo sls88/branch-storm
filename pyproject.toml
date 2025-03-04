@@ -1,14 +1,14 @@
 [tool.poetry]
-name = "branch-storm"
+name = "branch_storm"
 version = "0.1.0"
 
-description = "clm_core package"
+description = "branch_storm package"
 authors = ["Dmitrii Zhitin <3271707@gmail.com>"]
 
-packages = [{ include = "src", to = "branch-storm" }]
+packages = [{ include = "_src" }]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.10"
+python = ">=3.9"
 typeguard = "4.4.1"
 
 [tool.poetry.group.dev.dependencies]

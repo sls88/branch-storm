@@ -3,9 +3,9 @@ from typing import Tuple, List
 
 import pytest
 
-from src.operation import Operation as op, CallObject as obj
-from src.processor.initialization import is_it_arg_type
-from src.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
+from _src.operation import Operation as op, CallObject as obj
+from _src.initialization_core import is_it_arg_type
+from _src.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
 
 
 def return1() -> int:
@@ -69,7 +69,7 @@ def test_process_one_op_func_with_two_kwargs():
 
 def test_process_one_op_func_return_empty_tuple():
     operation = op(obj(return_empty_tuple)())
-    actual_result = operation.run(())
+    actual_result = operation.run()
     actual_op_stack = operation._operation_stack
 
     assert actual_result == ((), None)
@@ -77,7 +77,7 @@ def test_process_one_op_func_return_empty_tuple():
 
 
 def test_process_one_op_func_return_none():
-    actual_result = op(obj(return_none)()).run(())
+    actual_result = op(obj(return_none)()).run()
 
     assert actual_result == (None, None)
 
@@ -237,10 +237,9 @@ def test_process_one_op_function_def_args_expected_int_and_int_in_args():
 def test_process_one_op_function_sequence_in_non_var_positional_argument_neg():
     operation = op(obj(def_args)(m(seq=True)[int], m[int], m[float]))
 
-    init_data = ()
     with pytest.raises(TypeError, match=re.escape(
             "Len: 1\nArguments names: ['a']")):
-        operation.run(init_data)
+        operation.run()
 
 
 def test_process_one_op_function_def_args_expected_int_and_optional_rest():

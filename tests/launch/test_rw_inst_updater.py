@@ -2,8 +2,8 @@ from typing import Any, Dict, Optional
 
 import pytest
 
-from src.default.rw_classes import Variables, Values
-from src.launch_operations.rw_inst_updater import RwInstUpdater
+from _src.default.rw_classes import Variables, Values
+from _src.launch_operations.rw_inst_updater import RwInstUpdater
 
 
 class A:
@@ -92,7 +92,9 @@ def test_rw_inst_updater(
         current_rw_inst: Optional[Dict[str, Any]],
         rw_inst_from_option: Optional[Dict[str, Any]],
         expected_result: Dict[str, Any]):
+    stack = "br1 -> br2"
     actual_result = RwInstUpdater().get_updated(
-        "br1 -> br2", current_rw_inst, rw_inst_from_option)
+        stack, current_rw_inst, rw_inst_from_option)
+    expected_result = RwInstUpdater._assign_stack_for_def_cl(stack, expected_result)
 
     assert actual_result == expected_result

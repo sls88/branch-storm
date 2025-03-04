@@ -1,14 +1,14 @@
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 import pytest
 
-from src.default.parallelism import thread_pool, create_init_data_sequence, parallelize_table_branches
-from src.default.stubs import get_all_args_return_default_value
-from src.operation import Operation as op, CallObject as obj
-from src.branch import Branch as br, Branch
-from src.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
+from _src.default.parallelism import thread_pool, create_init_data_sequence, parallelize_without_result
+from _src.default.stubs import get_all_args_return_default_value
+from _src.operation import Operation as op, CallObject as obj
+from _src.branch import Branch as br, Branch
+from _src.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
 
 
 @pytest.mark.parametrize(
@@ -40,15 +40,25 @@ def test_create_init_data_sequence(len_obj, idata_for_all, idata_for_each, expec
     assert actual_result == expected_result
 
 
+@dataclass
+class TableNameStorage:
+    name: Optional[str] = None
+
+
 def return_int_one() -> int: return 1
 def get_int_arg_and_plus_one(arg: int) -> int: return arg + 1
-def read(table_name, init_data=100): return init_data
+
+def read(table_name, tns: TableNameStorage, init_data=100) -> Tuple[int, TableNameStorage]:
+    tns.name = table_name
+    return init_data, tns
+
 def transform(arg): return arg + 1
+def get_three_return_sum(arg1: int, arg2: int, arg3: int) -> int: return sum([arg1, arg2, arg3])
 
-
-def write(arg) -> None:
-    global actual_result
+def write(arg: int, table_name: str) -> None:
+    global actual_result, table_name_result
     actual_result += [arg]
+    table_name_result += [table_name]
     return None
 
 
@@ -59,6 +69,7 @@ class JobArgs:
 
 
 actual_result = []
+table_name_result = []
 
 dim_tables = [
     "dim_pale",
@@ -66,11 +77,20 @@ dim_tables = [
     "dim_kale"
 ]
 
+
 def dim_branches(table_name: str) -> Branch:
     return br(table_name)[
-        obj(read)(table_name=table_name, init_data=opt[int]),
+        obj(read)(table_name=table_name, tns=m("tns"), init_data=opt[int]),
         obj(transform)(m[int]),
-        obj(write)(m[int])]
+        op(obj(transform)(m[int])).assign("val.int_storage"),
+        br("transformation_branch")[
+            obj(transform)(m("val.int_storage")[int]),
+            obj(transform)(m("val.int_storage")[int]),
+            obj(transform)(m("val.int_storage")[int])
+        ].distribute_input_data,
+        obj(get_three_return_sum)(m[int], m[int], m[int]),
+        obj(write)(m[int], table_name=m("tns.name")[str])
+    ].rw_inst({"tns": TableNameStorage()})
 
 
 @pytest.fixture
@@ -87,17 +107,19 @@ def test_process_few_branches_parallel_without_initial_data(get_table_branches):
         "api_to_json": [...],
         "json_to_parquet": [...],
         "trusted_to_enriched": br("trusted_to_enriched")[
-             obj(parallelize_table_branches)("trusted_to_enriched",
-                 table_branches, threads=m("ja.threads"))
+             obj(parallelize_without_result)("trusted_to_enriched",
+                                             table_branches, threads=m("ja.threads"))
         ].rw_inst({"ja": ja})
     }
 
     exec_result = objects_for_processing.get(ja.job_name).run()
 
-    global actual_result
-    assert sorted(actual_result) == [101, 101, 101]
+    global actual_result, table_name_result
+    assert sorted(actual_result) == [309, 309, 309]
+    assert sorted(table_name_result) == ['dim_kale', 'dim_pale', 'dim_sale']
     assert exec_result is None
     actual_result = []
+    table_name_result = []
 
 
 def test_process_few_branches_parallel_with_initial_data(get_table_branches):
@@ -110,14 +132,16 @@ def test_process_few_branches_parallel_with_initial_data(get_table_branches):
         "api_to_json": [...],
         "json_to_parquet": [...],
         "trusted_to_enriched": br("trusted_to_enriched")[
-             obj(parallelize_table_branches)("trusted_to_enriched",
-                 table_branches, threads=m("ja.threads"), idata_for_each=(initial_data,))
+             obj(parallelize_without_result)("trusted_to_enriched",
+                                             table_branches, threads=m("ja.threads"), idata_for_each=(initial_data,))
         ].rw_inst({"ja": ja})
     }
 
     exec_result = objects_for_processing.get(ja.job_name).run()
 
-    global actual_result
-    assert sorted(actual_result) == [2, 3, 4]
+    global actual_result, table_name_result
+    assert sorted(actual_result) == [12, 15, 18]
+    assert sorted(table_name_result) == ['dim_kale', 'dim_pale', 'dim_sale']
     assert exec_result is None
     actual_result = []
+    table_name_result = []

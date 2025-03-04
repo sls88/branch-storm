@@ -1,14 +1,14 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
-from src.constants import STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
-from src.launch_operations.data_parsing import ResultParser
-from src.launch_operations.errors import EmptyDataError, IncorrectParameterError, EmptyBranchError, \
+from _src.constants import STOP_CONSTANT
+from _src.launch_operations.data_parsing import ResultParser
+from _src.launch_operations.errors import EmptyDataError, IncorrectParameterError, EmptyBranchError, \
     RemainingArgsFoundError
-from src.launch_operations.launch_utils import to_tuple
-from src.launch_operations.rw_inst_updater import RwInstUpdater
-from src.operation import Operation, CallObject, Assigner, OptionsChecker
-from src.utils.common import renew_def_rw_inst
-from src.utils.formatters import LoggerBuilder
+from _src.utils.common import to_tuple
+from _src.launch_operations.rw_inst_updater import RwInstUpdater
+from _src.operation import Operation, CallObject, Assigner, OptionsChecker
+from _src.utils.common import renew_def_rw_inst
+from _src.utils.formatters import LoggerBuilder
 
 
 log = LoggerBuilder().build()
@@ -29,6 +29,7 @@ class Branch:
         self._assign: Optional[Tuple[str]] = None
         self._all_operations_must_be_executed: Optional[bool] = None
         self._hide_init_inf_from_logs: Optional[bool] = None
+        self._check_type_strategy_all: Optional[bool] = None
         self._raise_err_if_empty_data: bool = False
         self._distribute_input_data: bool = False
 
@@ -61,8 +62,9 @@ class Branch:
         self._hide_init_inf_from_logs = value
         return self
 
-    def renew_def_rw_inst(self):
-        self._rw_inst = renew_def_rw_inst(self._rw_inst)
+    def check_type_strategy_all(self, value: bool) -> "Branch":
+        self._check_type_strategy_all = value
+        return self
 
     @property
     def distribute_input_data(self) -> "Branch":
@@ -80,6 +82,9 @@ class Branch:
     def set_br_name(self, br_name: Optional[str]) -> None:
         self._br_name = "BRANCH NAME NOT DEFINED" \
             if br_name is None else br_name
+
+    def _renew_def_rw_inst(self):
+        self._rw_inst = renew_def_rw_inst(self._operation_stack, self._rw_inst)
 
     def _get_current_operation(self) -> None:
         if self._operations:
@@ -146,6 +151,8 @@ class Branch:
                 self._all_operations_must_be_executed = False
             if self._hide_init_inf_from_logs is None:
                 self._hide_init_inf_from_logs = False
+            if self._check_type_strategy_all is None:
+                self._check_type_strategy_all = True
         return input_data
 
     def _end_branch_check(
@@ -179,7 +186,13 @@ class Branch:
         if self._is_it_operation:
             self._current_operation._set_last_op_stack(self._last_op_stack)
             self._current_operation._set_branch_stack(self._branch_stack)
+            self._current_operation._check_name()
             self._operation_stack = self._current_operation._update_stack()
+            OptionsChecker.check_burn_rem_args_br(
+                self._operation_stack,
+                self._current_operation._burn_rem_args,
+                self._current_operation._stop_distribution,
+                self._delayed_return)
         else:
             self._current_operation._set_last_op_stack(self._last_op_stack)
             self._operation_stack = f"{self._branch_stack}(branch)"
@@ -201,7 +214,7 @@ class Branch:
                 f'"stop_all_further_operations_with_success_result"\n'
                 f'meaning forced stop of all further operations. '
                 f'The branch will return this constant as a result.')
-            return STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
+            return STOP_CONSTANT
         input_data = sd.data
 
         if self._is_it_operation:
@@ -209,6 +222,8 @@ class Branch:
             self._operation_stack = self._current_operation._get_op_stack()
             if self._current_operation._hide_init_inf_from_logs is None:
                 self._current_operation._hide_init_inf_from_logs = self._hide_init_inf_from_logs
+            if self._current_operation._check_type_strategy_all is None:
+                self._current_operation._check_type_strategy_all = self._check_type_strategy_all
 
             result, rem_args = self._current_operation.run(input_data)
 
@@ -256,14 +271,20 @@ class Branch:
         if self._current_operation._hide_init_inf_from_logs is None:
             self._current_operation._hide_init_inf_from_logs = \
                 self._hide_init_inf_from_logs
+        if self._current_operation._check_type_strategy_all is None:
+            self._current_operation._check_type_strategy_all = \
+                self._check_type_strategy_all
         if self._distribute_input_data:
             self._distribute_input_data = False
             self._current_operation._distribute_input_data = True
+
         self._current_operation._set_branch_stack(self._branch_stack)
         self._current_operation._set_rw_inst(self._rw_inst)
-        self._current_operation.renew_def_rw_inst()
+        self._current_operation._renew_def_rw_inst()
 
         result = self._current_operation.run(input_data)
+        self._set_last_op_stack(self._current_operation._last_op_stack)
+
         if self._operations is None:
             if self._assign is not None:
                 return Assigner.do_assign(

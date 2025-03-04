@@ -1,13 +1,13 @@
 from dataclasses import dataclass
-from typing import Tuple, Any, Dict, Type
+from typing import Tuple
 
 import pytest
 
-from src.default.rw_classes import Values, Variables
-from src.operation import Operation as op, CallObject as obj
-from src.branch import Branch as br
-from src.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
-from src.utils.common import renew_def_rw_inst
+from _src.default.rw_classes import Values, Variables
+from _src.operation import Operation as op, CallObject as obj
+from _src.branch import Branch as br
+from _src.type_containers import MandatoryArgTypeContainer as m
+from _src.utils.common import renew_def_rw_inst
 
 
 def return_one(): return 1
@@ -57,12 +57,12 @@ def test_renew_rw_inst():
     rw_inst = {"val": val, "var": var, "st": st}
 
     base_id = {k: id(v) for k, v in rw_inst.items()}
-    rw_inst = renew_def_rw_inst(rw_inst)
+    rw_inst = renew_def_rw_inst("st -> ack", rw_inst)
     actual_result_id = {k: id(v) for k, v in rw_inst.items()}
 
     actual_fields = {k: v.__dict__ for k, v in rw_inst.items()}
-    expected_fields = {'val': {'val_field1': 1, 'val_field2': 2},
-                       'var': {'var_field1': 1},
+    expected_fields = {'val': {'_op_stack_name': '', 'val_field1': 1, 'val_field2': 2},
+                       'var': {'_op_stack_name': '', 'var_field1': 1},
                        'st': {'t_class': ThirdStorage(third_val=3)}}
 
     assert base_id["val"] != actual_result_id["val"]
@@ -92,7 +92,8 @@ def test_assign_default_rw_class_vals_vars_via_opr_assign():
 def test_assign_default_rw_class_vals_vars_via_opr_neg():
     with pytest.raises(
             AttributeError,
-            match="'Values' object has no attribute 'store_one'"):
+            match="Operation: trusted_to_enriched -> get_arg_and_get_rw_class_value_via_object_kwargs. "
+                  "No such attribute in Variables"):
         br("trusted_to_enriched")[
             br("br1")[
                 op(obj(return_one)()).assign("val.store_one"),

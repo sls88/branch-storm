@@ -3,11 +3,11 @@ from typing import Any, Union
 
 import pytest
 
-from src.constants import STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
-from src.launch_operations.errors import EmptyDataError, IncorrectParameterError
-from src.operation import Operation as op, CallObject as obj
-from src.branch import Branch as br
-from src.type_containers import MandatoryArgTypeContainer as m
+from _src.constants import STOP_CONSTANT
+from _src.launch_operations.errors import EmptyDataError, IncorrectParameterError
+from _src.operation import Operation as op, CallObject as obj
+from _src.branch import Branch as br
+from _src.type_containers import MandatoryArgTypeContainer as m
 
 counter = 0
 
@@ -24,7 +24,7 @@ def write(arg: int) -> None:
 def read_return_none(): return None
 def transform_return_none(arg: int): return None
 def return_stop_constant(arg: int) -> Union[Any, str]:
-    return STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
+    return STOP_CONSTANT
 
 
 def test_all_operations_must_be_executed_false_complete():
@@ -133,7 +133,7 @@ def test_return_stop_further_operations_constant():
             op(obj(write)(m[int]))
         ].run()
 
-    assert actual_result == STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
+    assert actual_result == STOP_CONSTANT
     global counter
     assert counter == 0
     counter = 0
@@ -155,7 +155,7 @@ def test_return_stop_further_operations_constant_several_branches_with_def_args(
             ].def_args(),
         ].run()
 
-    assert actual_result == STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
+    assert actual_result == STOP_CONSTANT
     global counter
     assert counter == 0
     counter = 0

@@ -1,8 +1,8 @@
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, List, Optional, Tuple, Sequence
 
-from src.branch import Branch
-from src.utils.formatters import LoggerBuilder
+from _src.branch import Branch
+from _src.utils.formatters import LoggerBuilder
 
 log = LoggerBuilder().build()
 
@@ -57,8 +57,9 @@ def thread_pool(
     else:
         threads = int(threads)
     with ThreadPoolExecutor(max_workers=threads) as pool:
-        print(list(zip(table_branches_seq, arg_seq)))
-        for one_thread_result in pool.map(lambda x: x[0].run(x[1]), zip(table_branches_seq, arg_seq)):
+        for one_thread_result in pool.map(
+                lambda x: x[0].run(x[1]),
+                zip(table_branches_seq, arg_seq)):
             results.append(one_thread_result)
         log.info(f"ThreadPoolExecutor has finished processing in {threads} threads")
 
@@ -79,7 +80,7 @@ def update_br_name(
     return type_seq(table_branches_seq)
 
 
-def parallelize_table_branches(
+def parallelize_without_result(
         job_name: str,
         table_branches_seq: Sequence[Branch],
         threads: str,
@@ -88,3 +89,14 @@ def parallelize_table_branches(
     table_branches_seq = update_br_name(job_name, table_branches_seq)
     arg_seq = create_init_data_sequence(len(table_branches_seq), idata_for_all, idata_for_each)
     thread_pool(arg_seq, table_branches_seq, threads=threads)
+
+
+def parallelize_with_result_return(
+        job_name: str,
+        table_branches_seq: Sequence[Branch],
+        threads: str,
+        idata_for_all: Optional[Any] = None,
+        idata_for_each: Tuple[Sequence] = None) -> Tuple:
+    table_branches_seq = update_br_name(job_name, table_branches_seq)
+    arg_seq = create_init_data_sequence(len(table_branches_seq), idata_for_all, idata_for_each)
+    return thread_pool(arg_seq, table_branches_seq, threads=threads)

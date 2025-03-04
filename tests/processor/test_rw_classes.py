@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from typing import Tuple
 
 import pytest
-from src.operation import Operation as op, CallObject as obj
-from src.type_containers import MandatoryArgTypeContainer as m
+from _src.operation import Operation as op, CallObject as obj
+from _src.type_containers import MandatoryArgTypeContainer as m
 
 
 @dataclass
@@ -47,16 +47,16 @@ def test_process_one_object_get_aaa_bbb_fields_value_in_func_kwargs():
 
 def test_process_one_object_get_aaa_bbb_instances_in_func_kwargs():
     aaa = AAA()
-    operation = op(obj(get_aaa_bbb_rw_instances)("aaa", arg2=m("aaa.second_field")[BBB]))
-    actual_result = operation.rw_inst({"aaa": aaa}).run(())
+    operation = op(obj(get_aaa_bbb_rw_instances)(m("aaa"), arg2=m("aaa.second_field")[BBB]))
+    actual_result = operation.rw_inst({"aaa": aaa}).run()
 
     assert actual_result == ((aaa, aaa.second_field), None)
 
 
 def test_process_one_object_get_aaa_bbb_instances_in_func_kwargs_first_pos_expanded_from_kwargs():
     aaa = AAA()
-    operation = op(obj(get_aaa_bbb_rw_instances)(arg1="aaa", arg2=m("aaa.second_field")))
-    actual_result = operation.rw_inst({"aaa": aaa}).run(())
+    operation = op(obj(get_aaa_bbb_rw_instances)(arg1=m("aaa"), arg2=m("aaa.second_field")))
+    actual_result = operation.rw_inst({"aaa": aaa}).run()
 
     assert actual_result == ((aaa, aaa.second_field), None)
 
@@ -65,7 +65,7 @@ def test_process_one_object_get_rw_kwargs_typehint_in_class():
     aaa = AAA()
     bbb = BBB()
     operation = op(obj(OneRunMethodBound)(
-        "aa", arg2=m[int]).method(200, arg4="bb"))
+        m("aa"), arg2=m[int]).method(200, arg4=m("bb")))
     operation._set_branch_stack("stack")
     actual_result = operation.rw_inst({"aa": aaa, "bb": bbb}).run((100,))
     actual_op_stack = operation._operation_stack
@@ -81,7 +81,7 @@ def get_and_pass_one_arg(arg: int) -> int:
 def test_process_one_object_get_rw_args_in_func():
     aaa = AAA()
     operation = op(obj(get_and_pass_one_arg)(m("aa.second_field.bbb_field")[int]))
-    actual_result = operation.rw_inst({"aa": aaa}).run(())
+    actual_result = operation.rw_inst({"aa": aaa}).run()
 
     assert actual_result == (0, None)
 
@@ -102,7 +102,7 @@ class Storage:
 def test_process_one_object_get_rw_args_in_class():
     operation = op(obj("s.f").method(arg2=m("a.second_field.bbb_field")))
     operation._set_branch_stack("stack")
-    actual_result = operation.rw_inst({"a": AAA(), "s": Storage()}).run(())
+    actual_result = operation.rw_inst({"a": AAA(), "s": Storage()}).run()
     actual_op_stack = operation._operation_stack
 
     assert actual_result == ((1, 0), None)
@@ -116,7 +116,7 @@ def test_process_one_object_get_rw_args_in_class_no_such_class_neg():
             TypeError,
             match=re.escape("Operation: stack -> External instance from string: \"inc_class.f\". "
                             "No such alias \"inc_class\" in rw_inst. Existing_aliases: ['val', 'var'].")):
-        operation.run(())
+        operation.run()
 
 
 def test_process_one_object_get_rw_args_in_class_incorrect_method_neg():
@@ -126,4 +126,4 @@ def test_process_one_object_get_rw_args_in_class_incorrect_method_neg():
             AttributeError,
             match='Operation: stack -> External instance from string: "s.incorrect". '
                   'The RW class "Storage" does not have attribute "incorrect"'):
-        operation.rw_inst({"a": AAA(), "s": Storage()}).run(())
+        operation.rw_inst({"a": AAA(), "s": Storage()}).run()

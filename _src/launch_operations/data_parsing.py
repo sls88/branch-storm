@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, Callable, Dict
 
-from src.constants import STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
+from _src.constants import STOP_CONSTANT
 
 
 @dataclass
@@ -81,4 +81,4 @@ class ResultParser:
 
         Return True if yes.
         """
-        return isinstance(obj, str) and obj == STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
+        return isinstance(obj, str) and obj == STOP_CONSTANT

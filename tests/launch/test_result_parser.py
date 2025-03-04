@@ -3,8 +3,8 @@ from typing import Any, Dict, Tuple
 
 import pytest
 
-from src.constants import STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT
-from src.launch_operations.data_parsing import ResultParser
+from _src.constants import STOP_CONSTANT
+from _src.launch_operations.data_parsing import ResultParser
 
 
 @dataclass
@@ -29,9 +29,9 @@ new_stc = SecondTransitClass(new_instance=True)
         ((), {"tc": tc}, ((), False, {"tc": tc})),
         (((),), {"tc": tc}, (((),), False, {"tc": tc})),
         ((None,), {"tc": tc}, ((None,), False, {"tc": tc})),
-        ((STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT,), {"tc": tc}, ((), True, {"tc": tc})),
+        ((STOP_CONSTANT,), {"tc": tc}, ((), True, {"tc": tc})),
         ((new_tc,), {"tc": tc}, ((), False, {"tc": new_tc})),
-        ((new_tc, STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT), {"tc": tc}, ((), True, {"tc": new_tc})),
+        ((new_tc, STOP_CONSTANT), {"tc": tc}, ((), True, {"tc": new_tc})),
         ((1, new_tc), {"tc": tc}, ((1,), False, {"tc": new_tc})),
         (((), new_tc), {"tc": tc}, (((),), False, {"tc": new_tc})),
         ((None, new_tc), {"tc": tc}, ((None,), False, {"tc": new_tc})),
@@ -40,7 +40,7 @@ new_stc = SecondTransitClass(new_instance=True)
             ((1, 2), False, {"tc": new_tc, "stc": new_stc})),
         ((1, new_tc, 2, new_stc, None, ()), {"tc": tc, "stc": stc},
             ((1, 2, None, ()), False, {"tc": new_tc, "stc": new_stc})),
-        ((1, new_tc, 2, STOP_ALL_FURTHER_OPERATIONS_WITH_SUCCESS_RESULT, new_stc), {"tc": tc, "stc": stc},
+        ((1, new_tc, 2, STOP_CONSTANT, new_stc), {"tc": tc, "stc": stc},
          ((1, 2), True, {"tc": new_tc, "stc": new_stc})),
     ],
 )

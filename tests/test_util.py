@@ -1,6 +1,6 @@
 import re
 
-from src.utils.formatters import error_formatter
+from _src.utils.formatters import error_formatter
 
 
 def def_3(): raise ValueError("Now it is Value Error!")

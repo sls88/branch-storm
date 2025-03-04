@@ -4,8 +4,8 @@ from typing import Tuple, cast
 
 import pytest
 
-from src.operation import Operation as op, CallObject as obj
-from src.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
+from _src.operation import Operation as op, CallObject as obj
+from _src.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
 
 
 class OneRunMethodWOArgs:
@@ -158,7 +158,7 @@ def test_process_one_op_many_run_methods_bound_wo_args():
 
 def test_process_one_op_many_run_methods_static_wo_args():
     operation = op(obj(ManyRunMethods)().method2())
-    actual_result = operation.run(())
+    actual_result = operation.run()
 
     assert actual_result == (2, None)
 
@@ -166,7 +166,7 @@ def test_process_one_op_many_run_methods_static_wo_args():
 def test_process_one_op_many_run_methods_return_init():
     operation = op(obj(ManyRunMethods)())
     operation._set_branch_stack("stack")
-    result = operation.run(())
+    result = operation.run()
     actual_result = (isinstance(result[0], ManyRunMethods), result[1])
     actual_op_stack = operation._operation_stack
 

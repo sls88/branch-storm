@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional, List, Type
 
-from src.default.rw_classes import Values, Variables
+from _src.default.rw_classes import Values, Variables
 
 
 class RwInstUpdater:
@@ -16,13 +16,22 @@ class RwInstUpdater:
 
         updated_cl = RwInstUpdater._merge_rw_inst(current_rw_inst, rw_inst_from_option)
         if base_opt == {}:
-            return {**RwInstUpdater._separate_cls_inst(updated_cl, Values),
-                    **RwInstUpdater._separate_cls_inst(updated_cl, Variables)}
-        return updated_cl
+            updated_cl = {**RwInstUpdater._separate_cls_inst(updated_cl, Values),
+                          **RwInstUpdater._separate_cls_inst(updated_cl, Variables)}
+
+        return RwInstUpdater._assign_stack_for_def_cl(stack, updated_cl)
 
     @staticmethod
     def _get_classes(rw_inst: Optional[Dict[str, Any]]) -> List[Type]:
         return list(map(lambda x: type(x), rw_inst.values()))
+
+    @staticmethod
+    def _assign_stack_for_def_cl(stack: str, updated_cl: Dict[str, Any]) -> Dict[str, Any]:
+        for alias, rw_inst in updated_cl.items():
+            if any([isinstance(rw_inst, Values), isinstance(rw_inst, Variables)]):
+                rw_inst._op_stack_name = stack
+                updated_cl[alias] = rw_inst
+        return updated_cl
 
     @staticmethod
     def _separate_cls_inst(rw_inst: Optional[Dict[str, Any]],
@@ -41,8 +50,9 @@ class RwInstUpdater:
         return cls_opt if cls_opt else cls_input
 
     @staticmethod
-    def _merge_rw_inst(current_rw_inst: Dict[str, Any],
-                       rw_inst_from_option: Dict[str, Any]) -> Dict[str, Any]:
+    def _merge_rw_inst(
+            current_rw_inst: Dict[str, Any],
+            rw_inst_from_option: Dict[str, Any]) -> Dict[str, Any]:
         all_classes = [*RwInstUpdater._get_classes(current_rw_inst),
                        *RwInstUpdater._get_classes(rw_inst_from_option)]
 
