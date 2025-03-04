@@ -3,9 +3,9 @@ from typing import Tuple, List
 
 import pytest
 
-from _src.operation import Operation as op, CallObject as obj
-from _src.initialization_core import is_it_arg_type
-from _src.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
+from src.branch_storm.operation import Operation as op, CallObject as obj
+from src.branch_storm.initialization_core import is_it_arg_type
+from src.branch_storm.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
 
 
 def return1() -> int:

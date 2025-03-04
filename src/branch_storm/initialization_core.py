@@ -5,9 +5,9 @@ from typing import Any, Dict, Optional, Tuple, Type, Union
 
 from typeguard import check_type, TypeCheckError, CollectionCheckStrategy
 
-from _src.launch_operations.errors import EmptyDataError
-from _src.type_containers import MandatoryArgTypeContainer, OptionalArgTypeContainer
-from _src.utils.formatters import LoggerBuilder
+from .launch_operations.errors import EmptyDataError
+from .type_containers import MandatoryArgTypeContainer, OptionalArgTypeContainer
+from .utils.formatters import LoggerBuilder
 
 ArgTypeContainer = Union[Type[Union[
     MandatoryArgTypeContainer, OptionalArgTypeContainer]],

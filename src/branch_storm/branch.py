@@ -1,14 +1,14 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
-from _src.constants import STOP_CONSTANT
-from _src.launch_operations.data_parsing import ResultParser
-from _src.launch_operations.errors import EmptyDataError, IncorrectParameterError, EmptyBranchError, \
+from .constants import STOP_CONSTANT
+from .launch_operations.data_parsing import ResultParser
+from .launch_operations.errors import EmptyDataError, IncorrectParameterError, EmptyBranchError, \
     RemainingArgsFoundError
-from _src.utils.common import to_tuple
-from _src.launch_operations.rw_inst_updater import RwInstUpdater
-from _src.operation import Operation, CallObject, Assigner, OptionsChecker
-from _src.utils.common import renew_def_rw_inst
-from _src.utils.formatters import LoggerBuilder
+from .utils.common import to_tuple
+from .launch_operations.rw_inst_updater import RwInstUpdater
+from .operation import Operation, CallObject, Assigner, OptionsChecker
+from .utils.common import renew_def_rw_inst
+from .utils.formatters import LoggerBuilder
 
 
 log = LoggerBuilder().build()

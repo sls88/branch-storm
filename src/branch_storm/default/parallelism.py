@@ -1,8 +1,8 @@
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, List, Optional, Tuple, Sequence
 
-from _src.branch import Branch
-from _src.utils.formatters import LoggerBuilder
+from ..branch import Branch
+from ..utils.formatters import LoggerBuilder
 
 log = LoggerBuilder().build()
 

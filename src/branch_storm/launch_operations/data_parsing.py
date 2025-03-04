@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, Callable, Dict
 
-from _src.constants import STOP_CONSTANT
+from ..constants import STOP_CONSTANT
 
 
 @dataclass

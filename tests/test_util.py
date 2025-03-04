@@ -1,6 +1,6 @@
 import re
 
-from _src.utils.formatters import error_formatter
+from src.branch_storm.utils.formatters import error_formatter
 
 
 def def_3(): raise ValueError("Now it is Value Error!")

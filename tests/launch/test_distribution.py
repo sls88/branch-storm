@@ -3,10 +3,10 @@ from typing import Tuple
 
 import pytest
 
-from _src.launch_operations.errors import RemainingArgsFoundError
-from _src.operation import Operation as op, CallObject as obj
-from _src.branch import Branch as br
-from _src.type_containers import MandatoryArgTypeContainer as m
+from src.branch_storm.launch_operations.errors import RemainingArgsFoundError
+from src.branch_storm.operation import Operation as op, CallObject as obj
+from src.branch_storm.branch import Branch as br
+from src.branch_storm.type_containers import MandatoryArgTypeContainer as m
 
 
 def return_1_2_3():

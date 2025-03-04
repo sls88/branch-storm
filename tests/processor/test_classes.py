@@ -1,11 +1,11 @@
 import re
 from dataclasses import dataclass
-from typing import Tuple, cast
+from typing import Tuple
 
 import pytest
 
-from _src.operation import Operation as op, CallObject as obj
-from _src.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
+from src.branch_storm.operation import Operation as op, CallObject as obj
+from src.branch_storm.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
 
 
 class OneRunMethodWOArgs:

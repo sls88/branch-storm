@@ -4,8 +4,9 @@ version = "0.1.0"
 
 description = "branch_storm package"
 authors = ["Dmitrii Zhitin <3271707@gmail.com>"]
+repository = "https://github.com/sls88/branch-storm"
 
-packages = [{ include = "_src" }]
+packages = [{ include = "branch_storm", from = "src" }]
 
 [tool.poetry.dependencies]
 python = ">=3.9"

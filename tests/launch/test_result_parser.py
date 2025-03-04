@@ -3,8 +3,8 @@ from typing import Any, Dict, Tuple
 
 import pytest
 
-from _src.constants import STOP_CONSTANT
-from _src.launch_operations.data_parsing import ResultParser
+from src.branch_storm.constants import STOP_CONSTANT
+from src.branch_storm.launch_operations.data_parsing import ResultParser
 
 
 @dataclass

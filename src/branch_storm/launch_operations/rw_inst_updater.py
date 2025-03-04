@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional, List, Type
 
-from _src.default.rw_classes import Values, Variables
+from ..default.rw_classes import Values, Variables
 
 
 class RwInstUpdater:

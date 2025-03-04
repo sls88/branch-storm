@@ -2,8 +2,8 @@ from typing import Any, Dict, Optional
 
 import pytest
 
-from _src.default.rw_classes import Variables, Values
-from _src.launch_operations.rw_inst_updater import RwInstUpdater
+from src.branch_storm.default.rw_classes import Variables, Values
+from src.branch_storm.launch_operations.rw_inst_updater import RwInstUpdater
 
 
 class A:

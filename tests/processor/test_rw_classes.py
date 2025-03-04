@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from typing import Tuple
 
 import pytest
-from _src.operation import Operation as op, CallObject as obj
-from _src.type_containers import MandatoryArgTypeContainer as m
+from src.branch_storm.operation import Operation as op, CallObject as obj
+from src.branch_storm.type_containers import MandatoryArgTypeContainer as m
 
 
 @dataclass

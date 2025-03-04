@@ -1,6 +1,6 @@
 from typing import Dict, Type
 
-from _src.default.rw_classes import Variables, Values
+from ..default.rw_classes import Variables, Values
 
 
 def assign(*args, **kwargs):

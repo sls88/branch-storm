@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional, Type, Tuple
 
-from _src.default.rw_classes import Values, Variables
+from ..default.rw_classes import Values, Variables
 
 
 def find_rw_inst(string: str, rw_inst: Dict[str, Any]) -> Optional[Type]:

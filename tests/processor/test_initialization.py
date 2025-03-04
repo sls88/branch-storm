@@ -3,8 +3,8 @@ from typing import Union
 
 import pytest
 
-from _src.initialization_core import get_args_from_arg_type, get_first_element, replace_and_get_elem_by_pos
-from _src.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
+from src.branch_storm.initialization_core import get_args_from_arg_type, get_first_element, replace_and_get_elem_by_pos
+from src.branch_storm.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
 
 
 @pytest.mark.parametrize(

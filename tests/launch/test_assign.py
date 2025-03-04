@@ -3,11 +3,11 @@ from typing import Tuple
 
 import pytest
 
-from _src.default.rw_classes import Values, Variables
-from _src.operation import Operation as op, CallObject as obj
-from _src.branch import Branch as br
-from _src.type_containers import MandatoryArgTypeContainer as m
-from _src.utils.common import renew_def_rw_inst
+from src.branch_storm.default.rw_classes import Values, Variables
+from src.branch_storm.operation import Operation as op, CallObject as obj
+from src.branch_storm.branch import Branch as br
+from src.branch_storm.type_containers import MandatoryArgTypeContainer as m
+from src.branch_storm.utils.common import renew_def_rw_inst
 
 
 def return_one(): return 1

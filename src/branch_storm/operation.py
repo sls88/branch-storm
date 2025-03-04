@@ -1,14 +1,14 @@
 from inspect import isfunction, isclass, ismethod, Parameter, signature
 from typing import Any, Dict, Optional, Tuple, Union, Callable, Type
 
-from _src.constants import PARAMETER_WAS_NOT_EXPANDED
-from _src.default.assign_results import assign
-from _src.launch_operations.errors import IncorrectParameterError, AssignmentError, DistributionError
-from _src.utils.common import to_tuple
-from _src.launch_operations.rw_inst_updater import RwInstUpdater
-from _src.initialization_core import InitCore, is_it_init_arg_type
-from _src.utils.common import find_rw_inst
-from _src.utils.formatters import LoggerBuilder, error_formatter
+from .constants import PARAMETER_WAS_NOT_EXPANDED
+from .default.assign_results import assign
+from .launch_operations.errors import IncorrectParameterError, AssignmentError, DistributionError
+from .utils.common import to_tuple
+from .launch_operations.rw_inst_updater import RwInstUpdater
+from .initialization_core import InitCore, is_it_init_arg_type
+from .utils.common import find_rw_inst
+from .utils.formatters import LoggerBuilder, error_formatter
 
 log = LoggerBuilder().build()
 
