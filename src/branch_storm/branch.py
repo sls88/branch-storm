@@ -298,3 +298,4 @@ class Branch:
                 self._operation_stack, self._assign,
                 self._rw_inst, result)
         return result
+
