@@ -46,6 +46,6 @@ new_stc = SecondTransitClass(new_instance=True)
 )
 def test_sort_data(data: Tuple, rw_inst: Dict[str, Any], expected_result: Tuple[Tuple, Dict[str, Any]]):
     sd, new_rw_inst = ResultParser.sort_data(data, rw_inst)
-    actual_result = sd.data, sd.stop_all_operations, new_rw_inst
+    actual_result = sd.data, sd.stop_constant, new_rw_inst
 
     assert actual_result == expected_result

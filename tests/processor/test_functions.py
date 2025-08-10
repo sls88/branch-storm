@@ -1,8 +1,10 @@
 import re
+from dataclasses import dataclass
 from typing import Tuple, List
 
 import pytest
 
+from src.branch_storm.default.rw_classes import RunConfigurations, BranchOptions
 from src.branch_storm.operation import Operation as op, CallObject as obj
 from src.branch_storm.initialization_core import is_it_arg_type
 from src.branch_storm.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
@@ -33,9 +35,18 @@ def args_kwargs_func(arg1: List[None], arg2, arg3: int, arg4: str, arg5: str, ar
     return arg1, arg2, arg3, arg4, arg5, arg6, argss, kwarg1, kwarg2, kwarg3, kwargss
 
 
+@dataclass
+class A:
+    pass
+
+
+@dataclass
+class B:
+    pass
+
 
 def test_process_one_op_func_without_args():
-    actual_result = op(obj(return1)()).run(())
+    actual_result = op(obj(return1)()).rw_inst({"a": A()}).rw_inst({"b": B()}).run(())
 
     assert actual_result == (1, None)
 
@@ -48,29 +59,25 @@ def test_process_one_op_func_with_two_args_one_remain():
 
 def test_process_one_op_func_with_two_args():
     operation = op(obj(return_args)(2, 3)).op_name("dim_r")
-    operation._set_branch_stack("stack")
     actual_result = operation.run((1,))
-    actual_op_stack = operation._operation_stack
 
     assert actual_result == ((2, 3), (1,))
-    assert actual_op_stack == 'stack -> dim_r'
 
 
 def test_process_one_op_func_with_two_kwargs():
     operation = op(obj(return_args)(arg1=2, arg2=3))
-    operation._set_branch_stack("stack")
     actual_result = operation.run((1,))
-    actual_op_stack = operation._operation_stack
+    actual_op_stack = operation._opts.op_name
 
     assert actual_result == ((2, 3), (1,))
-    assert actual_op_stack == 'stack -> return_args'
+    assert actual_op_stack == 'return_args'
 
 
 
 def test_process_one_op_func_return_empty_tuple():
     operation = op(obj(return_empty_tuple)())
     actual_result = operation.run()
-    actual_op_stack = operation._operation_stack
+    actual_op_stack = operation._opts.op_name
 
     assert actual_result == ((), None)
     assert actual_op_stack == "return_empty_tuple"
@@ -91,7 +98,7 @@ def test_process_one_op_big_function():
 
     init_data = (1, "tt", "lll", "pppp", 4.0, True, True, True, "str1", "str2", 1, 2, 3, 4, "F", 13)
     actual_result = operation.run(init_data)
-    print("actual_result:", actual_result)
+
     expected_data = (
         [None], 5, 1, 'uuu', 'tt', 3,
         (4.0, True, True, True, 'str1', 'str2', 1, 2, 3, 4, 'x5', 'F'),
@@ -113,7 +120,7 @@ def test_process_one_op_function_with_type_stubs_two_args_in_var_pos():
 
     init_data = (1, "tt", "lll", "pppp", 4.0, True, True, True, "str1", "str2", 1, 2, 3, 4, "F", 13)
     actual_result = operation.run(init_data)
-    print("actual_result:", actual_result)
+
     expected_data = (
         [None], 5, 1, 'uuu', 'tt', 3,
         (4.0, "x5"),

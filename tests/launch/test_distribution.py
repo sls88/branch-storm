@@ -90,6 +90,21 @@ def test_distribution_start_branch_and_last_func():
     assert actual_result == (1, 2, 3)
 
 
+def test_distribution_start_branch_and_last_func_equivalent_prev():
+    actual_result = br("trusted_to_enriched")[
+        op(obj(pass_one_arg)(m[int])).distribute_input_data,
+        op(obj(pass_one_arg)(m[int])).distribute_input_data,
+        op(obj(pass_one_arg)(m[int])).distribute_input_data.stop_distribution,
+        obj(pass_three_args)(m[int], m[int], m[int]),
+        op(obj(pass_one_arg)(m[int])).distribute_input_data,
+        op(obj(pass_one_arg)(m[int])).distribute_input_data,
+        op(obj(pass_one_arg)(m[int])).distribute_input_data.stop_distribution,
+        obj(pass_three_args)(m[int], m[int], m[int])
+    ].distribute_input_data.run((1, 2, 3))
+
+    assert actual_result == (1, 2, 3)
+
+
 def return1() -> int: return 1
 def return2() -> int: return 2
 def return3() -> int: return 3
@@ -107,6 +122,19 @@ def test_distribution_wo_args_in_branch():
     assert actual_result == (1, 2, 3)
 
 
+def test_assign_distribution_first_branch():
+    actual_result = br("trusted_to_enriched")[
+        op(obj(return1)()).assign("val.field1"),
+        op(obj(return2)()).assign("val.field2"),
+        op(obj(return3)()).assign("val.field3").stop_distribution.op_name("f3"),
+        op(obj(pass_one_arg)(m("val.field1"))).distribute_input_data,
+        obj(pass_one_arg)(m("val.field2")),
+        op(obj(pass_one_arg)(m("val.field3"))).stop_distribution,
+    ].distribute_input_data.run()
+
+    assert actual_result == (1, 2, 3)
+
+
 def test_distribution_wo_args_in_first_operation():
     actual_result = br("trusted_to_enriched")[
         op(obj(return1)()).distribute_input_data,
@@ -117,14 +145,94 @@ def test_distribution_wo_args_in_first_operation():
     assert actual_result == (1, 2, 3)
 
 
+def test_start_stop_distribution():
+    actual_result = br("trusted_to_enriched")[
+        op(obj(return1)()).distribute_input_data.stop_distribution,
+    ].run()
+
+    assert actual_result == 1
+
+
 def test_distribution_branch_to_branch():
     actual_result = br("trusted_to_enriched")[
-        br("br1")[obj(return1)(), obj(return2)(), obj(return3)()],
+        br("br1")[obj(return1)(), obj(return2)(), obj(return3)()].distribute_input_data,
         br("br2")[
             obj(pass_one_arg)(m[int]),
             obj(pass_one_arg)(m[int]),
             obj(pass_one_arg)(m[int])].distribute_input_data
-    ].distribute_input_data.run()
+    ].run()
+
+    assert actual_result == (1, 2, 3)
+
+
+def test_distribution_to_branch_last_functions():
+    actual_result = br("trusted_to_enriched")[
+        obj(return_1_2_3)(),
+        op(obj(pass_one_arg)(m[int])).distribute_input_data,
+        br("br2")[
+            obj(pass_one_arg)(m[int]),
+            obj(pass_one_arg)(m[int])]
+    ].run()
+
+    assert actual_result == (1, 2, 3)
+
+
+def test_distribution_to_branch_middle():
+    actual_result = br("trusted_to_enriched")[
+        obj(return_1_2_3)(),
+        op(obj(pass_one_arg)(m[int])).distribute_input_data,
+        br("br2")[
+            obj(pass_one_arg)(m[int])],
+        obj(pass_one_arg)(m[int])
+    ].run()
+
+    assert actual_result == (1, 2, 3)
+
+
+def test_distribution_to_branch_nested():
+    actual_result = br("trusted_to_enriched")[
+        op(obj(pass_one_arg)(m[int])).distribute_input_data,
+        br("br2")[
+            obj(pass_one_arg)(m[int]),
+            br("br3")[
+                obj(pass_one_arg)(m[int])]
+        ],
+        obj(pass_one_arg)(m[int])
+    ].run((1, 2, 3, 4))
+
+    assert actual_result == (1, 2, 3, 4)
+
+
+def test_distribution_to_branch_neg():
+    with pytest.raises(
+            RemainingArgsFoundError,
+            match=re.escape(
+                f"\nBranch: trusted_to_enriched -> br2.\n"
+                f"After executing the branch, data was detected that was not involved\n"
+                f"in the initialization/call. Len 2; Their types: [<class 'int'>, <class 'int'>]\n")):
+        br("trusted_to_enriched")[
+            br("br2")[
+                obj(pass_one_arg)(m[int]),
+                br("br3")[
+                    obj(pass_one_arg)(m[int])]
+            ].distribute_input_data,
+            obj(pass_one_arg)(m[int]),
+            obj(pass_one_arg)(m[int])
+        ].run((1, 2, 3, 4))
+
+
+def test_assign_distribution_branch_to_branch():
+    actual_result = br("trusted_to_enriched")[
+        br("br1")[
+            op(obj(return1)()).assign("val.field1"),
+            op(obj(return2)()).assign("val.field2"),
+            op(obj(return3)()).assign("val.field3")
+        ].distribute_input_data,
+        br("br2")[
+            obj(pass_one_arg)(m("val.field1")),
+            obj(pass_one_arg)(m("val.field2")),
+            obj(pass_one_arg)(m("val.field3"))].distribute_input_data
+    ].run()
 
     assert actual_result == (1, 2, 3)
 

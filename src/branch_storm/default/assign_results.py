@@ -22,13 +22,15 @@ def assign(*args, **kwargs):
                 try:
                     result = result.__getattribute__(field)
                 except AttributeError:
-                    if isinstance(result, Variables) or isinstance(result, Values):
+                    if (isinstance(result, Variables) or
+                            isinstance(result, Values)):
                         result = None
                 last_field = field
             try:
                 first_value = args.pop(0)
             except IndexError:
-                raise ValueError("Not enough positional arguments to assign fields to special classes")
+                raise ValueError("Not enough positional arguments "
+                                 "to assign fields to special classes")
 
             last_rw_inst.__setattr__(last_field, first_value)
 
