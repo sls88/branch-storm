@@ -2,10 +2,6 @@ class IncorrectParameterError(Exception):
     pass
 
 
-class EmptyBranchError(Exception):
-    pass
-
-
 class EmptyDataError(Exception):
     pass
 
@@ -19,4 +15,8 @@ class RemainingArgsFoundError(DistributionError):
 
 
 class AssignmentError(Exception):
+    pass
+
+
+class ConditionNotMetError(Exception):
     pass

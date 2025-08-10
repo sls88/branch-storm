@@ -51,6 +51,41 @@ def test_incorrect_name_in_nested_branch_level_less():
         ].run()
 
 
+def test_incorrect_br_name_in_nested_branch():
+    with pytest.raises(IncorrectParameterError, match=re.escape(
+            "ion: enriched_job -> nested_br -> deep_nested_br -> get_and_pass_arg_plus_1. The name")):
+        br("enriched_job")[
+            obj(return_1)(),
+            obj(get_and_pass_arg_plus_1)(arg=m[int]),
+            br("nested_br")[
+                obj(get_and_pass_arg_plus_1)(m[int]),
+                br("deep_nested_br")[
+                    op(obj(get_and_pass_arg_plus_1)(m[int])),
+                ],
+            ],
+            br(13)[
+                obj(get_and_pass_arg_plus_1)(m[int]),
+            ],
+            op(obj(get_and_pass_arg_plus_1)(m[int])),
+        ].run()
+
+
+def test_incorrect_br_name_in_nested_branch_level_less():
+    with pytest.raises(IncorrectParameterError, match=re.escape(
+            "ion: enriched_job -> nested_br -> get_and_pass_arg_plus_1. The name")):
+        br("enriched_job")[
+            obj(return_1)(),
+            obj(get_and_pass_arg_plus_1)(arg=m[int]),
+            br("nested_br")[
+                obj(get_and_pass_arg_plus_1)(m[int]),
+                br(13)[
+                    op(obj(get_and_pass_arg_plus_1)(m[int])),
+                ],
+            ],
+            op(obj(get_and_pass_arg_plus_1)(m[int])),
+        ].run()
+
+
 def test_incorrect_name_initial_run():
     with pytest.raises(IncorrectParameterError, match=re.escape(
             "The last successful operation: INITIAL RUN. The name passed")):
@@ -61,7 +96,7 @@ def test_incorrect_name_initial_run():
 
 def test_incorrect_name_single_run():
     with pytest.raises(IncorrectParameterError, match=re.escape(
-            "The last successful operation: INITIAL RUN. The name passed")):
+            "The last successful operation: SINGLE RUN. The name passed")):
         op(obj(return_1)()).op_name(111).run()
 
 

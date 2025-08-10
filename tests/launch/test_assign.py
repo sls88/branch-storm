@@ -3,11 +3,11 @@ from typing import Tuple
 
 import pytest
 
-from src.branch_storm.default.rw_classes import Values, Variables
+from src.branch_storm.default.rw_classes import Values, Variables, BranchOptions
 from src.branch_storm.operation import Operation as op, CallObject as obj
 from src.branch_storm.branch import Branch as br
 from src.branch_storm.type_containers import MandatoryArgTypeContainer as m
-from src.branch_storm.utils.common import renew_def_rw_inst
+from src.branch_storm.default.rw_classes import RunConfigurations
 
 
 def return_one(): return 1
@@ -51,27 +51,37 @@ def test_renew_rw_inst():
     val.val_field2 = 2
     var = Variables()
     var.var_field1 = 1
+    run_conf = RunConfigurations()
+    run_conf.set_operation_stack("OP")
     st = Storage()
     st.t_class.third_val = 3
 
-    rw_inst = {"val": val, "var": var, "st": st}
+    rw_inst = {"val": val, "var": var, "st": st, "run_conf": run_conf}
 
     base_id = {k: id(v) for k, v in rw_inst.items()}
-    rw_inst = renew_def_rw_inst("st -> ack", rw_inst)
+    rw_inst = RunConfigurations._renew_def_rw_inst("st -> ack", rw_inst)
     actual_result_id = {k: id(v) for k, v in rw_inst.items()}
 
     actual_fields = {k: v.__dict__ for k, v in rw_inst.items()}
-    expected_fields = {'val': {'_op_stack_name': '', 'val_field1': 1, 'val_field2': 2},
-                       'var': {'_op_stack_name': '', 'var_field1': 1},
-                       'st': {'t_class': ThirdStorage(third_val=3)}}
+    actual_fields['run_conf'].pop("br_opt")
+    actual_fields['run_conf'].pop("opt_stack")
+    expected_fields = {
+        'run_conf': {
+            'last_op_stack': 'INITIAL RUN',
+            'operation_stack': 'Initial -> OP',
+            'stack_divider': ' -> '},
+        'val': {'_op_stack_name': '', 'val_field1': 1, 'val_field2': 2},
+        'var': {'_op_stack_name': '', 'var_field1': 1},
+        'st': {'t_class': ThirdStorage(third_val=3)}}
 
     assert base_id["val"] != actual_result_id["val"]
     assert base_id["var"] != actual_result_id["var"]
+    assert base_id["run_conf"] != actual_result_id["run_conf"]
     assert base_id["st"] == actual_result_id["st"]
     assert actual_fields == expected_fields
 
 
-def test_assign_default_rw_class_vals_vars_via_opr_assign():
+def test_assign_default_rw_class_vals_vars_via_nested_br_last_assign():
     actual_result = br("trusted_to_enriched")[
         op(obj(return_one)()).assign("val.store_one"),
         obj(return_one)(),
@@ -89,21 +99,19 @@ def test_assign_default_rw_class_vals_vars_via_opr_assign():
     assert actual_result == (1, 1)
 
 
-def test_assign_default_rw_class_vals_vars_via_opr_neg():
-    with pytest.raises(
-            AttributeError,
-            match="Operation: trusted_to_enriched -> get_arg_and_get_rw_class_value_via_object_kwargs. "
-                  "No such attribute in Variables"):
-        br("trusted_to_enriched")[
-            br("br1")[
-                op(obj(return_one)()).assign("val.store_one"),
-                obj(return_one)(),
-                obj(get_and_pass_args)(m[int]),
-            ],
-            op(obj(get_arg_and_get_rw_class_value_via_object_kwargs)(
-                m[int], rw_value=m("val.store_one")[int])).assign(
-                "var.first_var", "var.second_var"),
-            obj(get_and_return_tuple_two_values)(arg1=m("var.first_var")[int],
-                                                 arg2=m("var.second_var")[int]),
-            obj(get_and_return_tuple_two_values)(m[int], m[int])
-        ].run()
+def test_assign_default_rw_class_vals_vars_via_nested_br_not_last():
+    actual_result = br("trusted_to_enriched")[
+        br("br1")[
+            op(obj(return_one)()).assign("val.store_one"),
+            obj(return_one)(),
+            obj(get_and_pass_args)(m[int]),
+        ],
+        op(obj(get_arg_and_get_rw_class_value_via_object_kwargs)(
+            m[int], rw_value=m("val.store_one")[int])).assign(
+            "var.first_var", "var.second_var"),
+        obj(get_and_return_tuple_two_values)(arg1=m("var.first_var")[int],
+                                             arg2=m("var.second_var")[int]),
+        obj(get_and_return_tuple_two_values)(m[int], m[int])
+    ].run()
+
+    assert actual_result == (1, 1)
