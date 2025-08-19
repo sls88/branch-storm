@@ -41,7 +41,7 @@ def test_process_one_object_get_aaa_bbb_fields_value_in_func_kwargs():
     actual_op_stack = operation._opts.op_name
 
     assert actual_result == ((15, 0), (1, 2))
-    assert actual_op_stack == 'get_aaa_bbb_fields'
+    assert actual_op_stack == 'get_aaa_bbb_fields()'
 
 
 def test_process_one_object_get_aaa_bbb_instances_in_func_kwargs():
@@ -69,7 +69,7 @@ def test_process_one_object_get_rw_kwargs_typehint_in_class():
     actual_op_stack = operation._opts.op_name
 
     assert actual_result == ((aaa, 100, 200, bbb), None)
-    assert actual_op_stack == 'OneRunMethodBound.method'
+    assert actual_op_stack == 'OneRunMethodBound().method()'
 
 
 def get_and_pass_one_arg(arg: int) -> int:
@@ -103,15 +103,16 @@ def test_process_one_object_get_rw_args_in_class():
     actual_op_stack = operation._opts.op_name
 
     assert actual_result == ((1, 0), None)
-    assert actual_op_stack == 'OneRunMethodBoundRW(ext_instance).method'
+    assert actual_op_stack == 'OneRunMethodBoundRW(instance).method()'
 
 
 def test_process_one_object_get_rw_args_in_class_no_such_class_neg():
     operation = op(obj("inc_class.f").method(arg2=m("a.second_field.bbb_field")[int]))
     with pytest.raises(
             TypeError,
-            match=re.escape("Operation: External instance from string: \"inc_class.f\". "
-                            "No such alias \"inc_class\" in rw_inst. Existing_aliases: ['val', 'var'].")):
+            match=re.escape(
+                "Operation: Instance from string: \"inc_class.f\".method(). "
+                "No such alias \"inc_class\" in rw_inst. Existing_aliases: ['val', 'var'].")):
         operation.run()
 
 
@@ -119,6 +120,7 @@ def test_process_one_object_get_rw_args_in_class_incorrect_method_neg():
     operation = op(obj("s.incorrect").method(m("a.second_field.bbb_field")))
     with pytest.raises(
             AttributeError,
-            match='Operation: External instance from string: "s.incorrect". '
-                  'The RW class "Storage" does not have attribute "incorrect"'):
+            match=re.escape(
+                'Operation: Instance from string: "s.incorrect".method(). '
+                'The RW class "Storage" does not have attribute "incorrect"')):
         operation.rw_inst({"a": AAA(), "s": Storage()}).run()

@@ -1,13 +1,13 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass, Field, field
-from types import MappingProxyType
-from typing import Optional, Tuple, Any, Dict, List, Type, Callable
+from typing import Optional, Tuple, Any, Dict, List, Type, Callable, Union
 
 from ..constants import INITIAL_RUN, DEFAULT_BRANCH_OPTIONS, INITIAL
 from ..utils.options_utils import OptionsChecker
 
 
-_ALLOWED_SCALARS = (str, int, float, complex, range, bool, bytes, bytearray, memoryview)
+_ALLOWED_SCALARS = (str, int, float, complex, range,
+                    bool, bytes, bytearray, memoryview)
 
 def _is_dunder(name: str) -> bool:
     return name.startswith("__") and name.endswith("__")
@@ -27,9 +27,11 @@ class Values:
 
     def __setattr__(self, key, value):
         if key in self.__dict__ and key != "_op_stack_name":
-            start_mess = f"Operation: {self._op_stack_name}. " if self._op_stack_name else ""
-            raise ValueError(f"{start_mess}The value cannot be overwritten. "
-                             f"The class is intended for single-write and read use.")
+            start_mess = f"Operation: {self._op_stack_name}. " if \
+            self._op_stack_name else ""
+            raise ValueError(
+                f"{start_mess}The value cannot be overwritten. "
+                f"The class is intended for single-write and read use.")
         if isinstance(value, Field):
             dcl_field = value
             value = dcl_field.default
@@ -46,7 +48,8 @@ class Values:
             return None
         if isinstance(value, _ALLOWED_SCALARS):
             return None
-        start_mess = f"Operation: {self._op_stack_name}. " if self._op_stack_name else ""
+        start_mess = f"Operation: {self._op_stack_name}. " if \
+            self._op_stack_name else ""
         raise TypeError(
             f"{start_mess}The pos_args or pos_args "
             f"structure being written has types other than: "
@@ -54,7 +57,8 @@ class Values:
             f"bool, bytes, bytearray, memoryview.")
 
     def __getattribute__(self, item):
-        if item in ("_op_stack_name", "_Values__check_data_structure") or _is_dunder(item):
+        if item in ("_op_stack_name",
+                    "_Values__check_data_structure") or _is_dunder(item):
             return super().__getattribute__(item)
 
         dct = super().__getattribute__("__dict__")
@@ -182,7 +186,8 @@ class RwInstUpdater:
         return list(map(lambda x: type(x), rw_inst.values()))
 
     @staticmethod
-    def _assign_stack_for_def_cl(stack: str, updated_cl: Dict[str, Any]) -> Dict[str, Any]:
+    def _assign_stack_for_def_cl(
+            stack: str, updated_cl: Dict[str, Any]) -> Dict[str, Any]:
         for alias, inst in updated_cl.items():
             if isinstance(inst, (Values, Variables)):
                 inst._op_stack_name = stack
@@ -191,7 +196,8 @@ class RwInstUpdater:
 
     @staticmethod
     def _separate_cls_inst(rw_inst: Dict[str, Any], cls: Any) -> Dict[str, Any]:
-        return {alias: inst for alias, inst in rw_inst.items() if isinstance(inst, cls)}
+        return {alias: inst for alias, inst in
+                rw_inst.items() if isinstance(inst, cls)}
 
     @staticmethod
     def _filter_from_def_cl(rw_inst: Dict[str, Any]) -> Dict[str, Any]:
@@ -222,7 +228,8 @@ class RwInstUpdater:
         list_dicts = list(map(
             lambda cls: RwInstUpdater._merge_class(
                 cls, current_rw_inst, rw_inst_from_option), all_classes))
-        result: Dict[str, Any] = {k: v for d in list_dicts for k, v in d.items()}
+        result: Dict[str, Any] = {
+            k: v for d in list_dicts for k, v in d.items()}
 
         all_res_clss = RwInstUpdater._get_classes(result)
         if Values not in all_res_clss:
@@ -257,7 +264,8 @@ class RwInstUpdater:
     def _aliases_check(
             stack: str,
             rw_inst_from_option: Dict[str, Any]) -> None:
-        all_aliases_str = all(isinstance(alias, str) for alias in list(rw_inst_from_option))
+        all_aliases_str = all(isinstance(alias, str) for
+                              alias in list(rw_inst_from_option))
         if not all_aliases_str:
             raise TypeError(
                 f"Operation: {stack}. "
@@ -334,7 +342,8 @@ class RwInstUpdater:
         for alias, value in rw_inst_from_option.items():
             if isinstance(value, str) and value.lower() in [
                 "clean", "new", "new_inst", "new_instance"] and (
-                    not isinstance(current_rw_inst[alias], Values) and not isinstance(
+                    not isinstance(
+                        current_rw_inst[alias], Values) and not isinstance(
                 current_rw_inst[alias], Variables)):
                 raise TypeError(
                     f"Operation: {stack}. "
@@ -370,7 +379,7 @@ class BranchOptions(BranchOptInterface):
     assign: Optional[Tuple[str, ...]] = None
     hide_log_inf: Tuple[Optional[bool], Optional[bool]] = (None, None)
     check_type_strategy_all: Optional[bool] = None
-    rw_inst: Tuple[Dict[str, Any], ...] = ()
+    rw_inst: Union[Dict[str, Any], Tuple[Dict[str, Any], ...]] = ()
     distribute_input_data: bool = False
     force_call: bool = False
     delayed_return: Optional[Tuple] = None
@@ -385,7 +394,7 @@ class BranchOptions(BranchOptInterface):
 @dataclass
 class RunConfigurations:
     """Store the latest run configurations."""
-    opt_stack: Optional[Tuple[BranchOptions]] = None
+    opt_stack: Optional[Tuple[BranchOptions, ...]] = None
     br_opt: Optional[BranchOptions] = None
 
     stack_divider: str = " -> "
@@ -397,12 +406,13 @@ class RunConfigurations:
 
     def add_br_opt_to_stack(self, br_opt: BranchOptions) -> None:
         stack = f"{self.get_branch_stack()} (branch)"
-        merged = RwInstUpdater.get_updated_all(stack, self.get_rw_inst(), br_opt.rw_inst)
+        merged = RwInstUpdater.get_updated_all(
+            stack, self.get_rw_inst(), br_opt.rw_inst)
         renewed = RunConfigurations._renew_def_rw_inst(stack, merged)
 
         self.opt_stack += (br_opt,)
         self.br_opt = br_opt
-        self.br_opt.rw_inst = MappingProxyType(renewed)
+        self.br_opt.rw_inst = renewed
 
         self._update_opt_stack()
 
@@ -413,19 +423,23 @@ class RunConfigurations:
         return self.stack_divider.join(names)
 
     def set_operation_stack(self, op_name: str) -> None:
-        self.operation_stack = f"{self.get_branch_stack()}{self.stack_divider}{op_name}"
+        self.operation_stack = (f"{self.get_branch_stack()}"
+                                f"{self.stack_divider}{op_name}")
 
     def update_last_rw_inst(self, rw_inst: Tuple[Dict[str, Any], ...]) -> None:
         base = self.get_rw_inst()
-        merged = RwInstUpdater.get_updated_all(self.operation_stack, base, rw_inst)
-        self.br_opt.rw_inst = MappingProxyType(merged)
+        merged = RwInstUpdater.get_updated_all(
+            self.operation_stack, base, rw_inst)
+        self.br_opt.rw_inst = merged
 
     def get_rw_inst(self) -> Dict[str, Any]:
-        base_map = dict(self.br_opt.rw_inst) if self.br_opt and self.br_opt.rw_inst else {}
+        base_map = dict(self.br_opt.rw_inst) if (
+                self.br_opt and self.br_opt.rw_inst) else {}
         return {**base_map, "run_conf": self}
 
     def get_renewed_self_instance(self) -> 'RunConfigurations':
-        new_rw_inst = RunConfigurations._renew_def_rw_inst(self.operation_stack, self.get_rw_inst())
+        new_rw_inst = RunConfigurations._renew_def_rw_inst(
+            self.operation_stack, self.get_rw_inst())
         return new_rw_inst["run_conf"]
 
     def pop_stack(self):
@@ -437,7 +451,7 @@ class RunConfigurations:
         self.br_opt = self.opt_stack[-1]
         if new_delay_return:
             self.br_opt.delayed_return = new_delay_return
-        self.br_opt.rw_inst = MappingProxyType(new_map)
+        self.br_opt.rw_inst = new_map
 
     def _pop_delayed_return(self) -> Optional[Tuple]:
         last_delay_return = self.br_opt.delayed_return
@@ -487,7 +501,10 @@ class RunConfigurations:
             self.br_opt.br_name = "BRANCH NAME NOT DEFINED"
 
     @staticmethod
-    def _renew_def_instance(stack: str, old_rw_inst: Dict[str, Any], rw_class: Type) -> Dict[str, Any]:
+    def _renew_def_instance(
+            stack: str,
+            old_rw_inst: Dict[str, Any],
+            rw_class: Type) -> Dict[str, Any]:
         for alias, rw_inst in old_rw_inst.items():
             if isinstance(rw_inst, rw_class):
                 new_inst = rw_class()
@@ -525,7 +542,7 @@ class RunConfigurations:
         br_opt.check_type_strategy_all = True
         br_opt.distribute_input_data = False
         root_map = {"val": Values(), "var": Variables(), "run_conf": self}
-        br_opt.rw_inst = MappingProxyType(root_map)
+        br_opt.rw_inst = root_map
         br_opt.delayed_return = None
 
         self.opt_stack = (br_opt,)

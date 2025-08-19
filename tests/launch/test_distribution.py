@@ -241,7 +241,7 @@ def test_remaining_args_found_neg():
     with pytest.raises(
             RemainingArgsFoundError,
             match=re.escape(
-                "Operation: trusted_to_enriched -> pass_one_arg.\n"
+                "Operation: trusted_to_enriched -> pass_one_arg().\n"
                 "After executing the operation, data was detected that was not involved\n"
                 "in the initialization/call. Len 2; Their types: [<class 'int'>, <class 'int'>]")):
         br("trusted_to_enriched")[
