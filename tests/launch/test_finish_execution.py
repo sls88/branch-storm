@@ -268,7 +268,7 @@ def test_raise_err_if_none_neg():
     with pytest.raises(
             ConditionNotMetError,
             match=re.escape(
-                "Operation: trusted_to_enriched -> transform.\n"
+                "Operation: trusted_to_enriched -> transform().\n"
                 "Received data: (<class 'NoneType'>,)(their types show)")):
         br("trusted_to_enriched")[
             op(obj(read_return_none)()),
@@ -326,7 +326,7 @@ def test_hide_log_inf():
                     op(obj(transform)(m[int])).hide_log_inf(all_inf=True),
                     op(obj(transform)(m[int])).op_name("show2").hide_log_inf(False),
                 ].hide_log_inf(True),
-                op(obj(transform)(m[int])).op_name("show3")
+                op(obj(transform)(m[int])) #"show3"
             ].hide_log_inf(False),
             op(obj(transform)(m[int])),
             op(obj(transform)(m[int])).op_name("show4").hide_log_inf(False),

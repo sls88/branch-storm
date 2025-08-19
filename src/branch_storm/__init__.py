@@ -15,6 +15,7 @@ from .launch_operations.data_parsing import SortedData, ResultParser
 from .operation import BaseOperationMethods, Operation, CallObject, do_assign_result, Assigner, OpBuilder
 from .type_containers import MandatoryArgTypeContainer, OptionalArgTypeContainer
 from .utils.formatters import LoggerBuilder, error_formatter
+from .utils.options_utils import OptionsChecker
 
 
 __all__ = [
@@ -35,7 +36,7 @@ __all__ = [
     "EmptyDataError", "DistributionError",
     "RemainingArgsFoundError", "AssignmentError",
     "ConditionNotMetError", "SortedData", "ResultParser",
-    "Operation", "InitCore",
+    "Operation", "InitCore", "OptionsChecker",
     "MandatoryArgTypeContainer", "OptionalArgTypeContainer",
     "LoggerBuilder", "error_formatter", "CallObject",
     "BaseOperationMethods", "do_assign_result", "Assigner",

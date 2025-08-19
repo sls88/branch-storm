@@ -4,7 +4,6 @@ from typing import Tuple, List
 
 import pytest
 
-from src.branch_storm.default.rw_classes import RunConfigurations, BranchOptions
 from src.branch_storm.operation import Operation as op, CallObject as obj
 from src.branch_storm.initialization_core import is_it_arg_type
 from src.branch_storm.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
@@ -46,7 +45,7 @@ class B:
 
 
 def test_process_one_op_func_without_args():
-    actual_result = op(obj(return1)()).rw_inst({"a": A()}).rw_inst({"b": B()}).run(())
+    actual_result = op(obj(return1)()).rw_inst({"a": A()}).rw_inst({"b": B()}).run()
 
     assert actual_result == (1, None)
 
@@ -70,7 +69,7 @@ def test_process_one_op_func_with_two_kwargs():
     actual_op_stack = operation._opts.op_name
 
     assert actual_result == ((2, 3), (1,))
-    assert actual_op_stack == 'return_args'
+    assert actual_op_stack == 'return_args()'
 
 
 
@@ -80,7 +79,7 @@ def test_process_one_op_func_return_empty_tuple():
     actual_op_stack = operation._opts.op_name
 
     assert actual_result == ((), None)
-    assert actual_op_stack == "return_empty_tuple"
+    assert actual_op_stack == "return_empty_tuple()"
 
 
 def test_process_one_op_func_return_none():
@@ -109,7 +108,8 @@ def test_process_one_op_big_function():
 
 def test_is_it_arg_type():
     assert (is_it_arg_type(m), is_it_arg_type(m[str]),
-            is_it_arg_type(opt), is_it_arg_type(opt[str])) == ('mandatory', 'mandatory', 'optional', 'optional')
+            is_it_arg_type(opt), is_it_arg_type(opt[str])) == (
+        'mandatory', 'mandatory', 'optional', 'optional')
 
 
 def test_process_one_op_function_with_type_stubs_two_args_in_var_pos():
@@ -250,7 +250,8 @@ def test_process_one_op_function_sequence_in_non_var_positional_argument_neg():
 
 
 def test_process_one_op_function_def_args_expected_int_and_optional_rest():
-    operation = op(obj(def_args)(100, m[int], opt[int], opt[int], opt[int]))
+    operation = op(obj(def_args)(
+        100, m[int], opt[int], opt[int], opt[int]))
 
     init_data = (20,)
     actual_result = operation.run(init_data)
@@ -269,11 +270,13 @@ def test_process_one_op_function_def_args_expected_int_and_not_mandatory_neg():
 
 
 def test_process_one_op_function_check_mand_after_opt_at_container_neg():
-    operation = op(obj(def_args)(100, opt[int], m[int], m[int], opt[int], m[int]))
+    operation = op(obj(def_args)(
+        100, opt[int], m[int], m[int], opt[int], m[int]))
 
     init_data = (20,)
     with pytest.raises(TypeError, match=re.escape(
-            "Len 3, Args map: {'c': 'mandatory', '1_pos_arg': 'mandatory', '3_pos_arg': 'mandatory'}")):
+            "Len 3, Args map: {'c': 'mandatory', "
+            "'1_pos_arg': 'mandatory', '3_pos_arg': 'mandatory'}")):
         operation.run(init_data)
 
 
@@ -288,7 +291,8 @@ def test_process_one_op_function_def_args_data_not_expected():
 
 
 def test_process_one_op_function_receive_seq_args():
-    operation = op(obj(receive_seq_args)(m(seq=True)[int], "100i", "200i"))
+    operation = op(obj(receive_seq_args)(
+        m(seq=True)[int], "100i", "200i"))
 
     init_data = (1, 2, 3)
     actual_result = operation.run(init_data)
@@ -301,16 +305,19 @@ def kwarg_after_var_pos(a, *args, b, **kwargs) -> Tuple:
 
 
 def test_process_one_op_function_receive_kwarg_after_var_pos_args_neg():
-    operation = op(obj(kwarg_after_var_pos)(1, m[int], m(seq=True), b=m[str]))
+    operation = op(obj(kwarg_after_var_pos)(
+        1, m[int], m(seq=True), b=m[str]))
 
     init_data = (10, 20, 30, "aaa")
     with pytest.raises(TypeError, match=re.escape(
-            "Operation: kwarg_after_var_pos. Len: 1, Args map: {'b': 'mandatory'}")):
+            "Operation: kwarg_after_var_pos(). Len: 1, Args map: {'b': "
+            "'mandatory'}")):
         operation.run(init_data)
 
 
 def test_process_one_op_function_receive_kwarg_after_var_pos_args_pos():
-    operation = op(obj(kwarg_after_var_pos)(1, m[int], m(seq=True), b=m(4)[str], bbb=15))
+    operation = op(obj(kwarg_after_var_pos)(
+        1, m[int], m(seq=True), b=m(4)[str], bbb=15))
 
     init_data = (10, 20, 30, "aaa")
     actual_result = operation.run(init_data)
@@ -328,7 +335,8 @@ def test_process_one_op_function_receive_data_vise_versa():
 
 
 def test_process_one_op_function_receive_data_three_index_in_args():
-    operation = op(obj(kwarg_after_var_pos)(m(2)[int], m(1)[int], m(3)[int], b=m[str]))
+    operation = op(obj(kwarg_after_var_pos)(
+        m(2)[int], m(1)[int], m(3)[int], b=m[str]))
 
     init_data = (10, 20, 30, "aaa")
     actual_result = operation.run(init_data)

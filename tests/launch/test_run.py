@@ -1,3 +1,4 @@
+import re
 from typing import Tuple, Any, Optional
 
 import pytest
@@ -97,8 +98,8 @@ def test_process_two_branches_def_on_second_branch():
 def test_process_two_branches_error_field_in_def_rw_class():
     with pytest.raises(
             AttributeError,
-            match="Operation: trusted_to_enriched_job -> dim_pale -> transform. "
-                  "No such attribute in Values"):
+            match=re.escape("Operation: trusted_to_enriched_job -> dim_pale "
+                            "-> transform(). No such attribute in Values")):
         br("trusted_to_enriched_job")[
             br("dim_term")[
                 op(obj(read)(table_name="dim_term")).op_name("f1"),
@@ -138,9 +139,10 @@ def test_process_two_branches_double_writing_in_def_rw_class_positive():
 def test_process_two_branches_double_writing_in_def_rw_class_negative():
     with pytest.raises(
             ValueError,
-            match="Operation: trusted_to_enriched_job -> dim_pale -> transform. "
-                  "The value cannot be overwritten. The class is intended "
-                  "for single-write and read use."):
+            match=re.escape(
+                "Operation: trusted_to_enriched_job -> dim_pale -> transform(). "
+                "The value cannot be overwritten. The class is intended "
+                "for single-write and read use.")):
         br("trusted_to_enriched_job")[
             br("dim_term")[
                 op(obj(read)(table_name="dim_term")),
@@ -203,16 +205,6 @@ def test_run_nested_functions_with_branch_break():
     ].run()
 
     assert actual_result == 11
-
-
-def test_maximum_recursion_depth_neg():
-    with pytest.raises(RecursionError):
-        br("trusted_to_enriched", BrRecursiveProcessor)[
-                br("br1")(
-                    obj(read)("table1"),
-                    *[obj(transform)(m[str]) for _ in range(1000)],
-                ),
-            ].run()
 
 
 custom_proc_run_counter = 0

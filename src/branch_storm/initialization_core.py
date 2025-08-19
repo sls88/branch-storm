@@ -14,7 +14,6 @@ log = LoggerBuilder().build()
 
 
 KwargsDict = Dict[str, Any]
-HideLogInf = Tuple[bool, bool]
 
 ArgTypeContainer = Union[
     Type[Union[MandatoryArgTypeContainer, OptionalArgTypeContainer]],
@@ -42,10 +41,7 @@ class InitState:
     args_in: Tuple
     kwargs_in: KwargsDict
     input_data: Tuple
-    hide_log_inf: HideLogInf = (False, False)
     check_type_strategy_all: bool = True
-
-    # produced along the way
     arg_params: Dict[Union[str, float, int], Param] = field(
         default_factory=dict)
     kw_params: Dict[str, Param] = field(default_factory=dict)
@@ -58,43 +54,6 @@ class ResultState:
     args: Tuple
     kwargs: KwargsDict
     rem_data: Optional[Tuple]
-
-
-class CallLogger:
-    """Emits a human-readable call preview into logs."""
-    @staticmethod
-    def emit(stack: str,
-             args: Tuple,
-             kwargs: KwargsDict,
-             hide_log_inf: HideLogInf = (False, False)) -> None:
-        args_for_log = tuple(type(arg) for arg in args)
-        kw_for_log = {k: type(v) for k, v in kwargs.items()}
-
-        if not (args_for_log or kw_for_log):
-            call_message = (
-                "\nThe call will be made "
-                "without positional or keyword arguments.")
-        elif args_for_log and not kw_for_log:
-            call_message = (
-                f"\nThe call will be made with positional arguments: "
-                f"{args_for_log} and without keyword arguments.")
-        elif kw_for_log and not args_for_log:
-            call_message = (
-                f"\nThe call will be made with keyword arguments: "
-                f"{kw_for_log} and without positional arguments.")
-        else:
-            call_message = (
-                f"\nThe call will be made with positional "
-                f"arguments: {args_for_log} and "
-                f"keyword arguments: {kw_for_log}.")
-
-        hide_init_inf, hide_all_inf = hide_log_inf
-        if hide_all_inf:
-            return
-        if hide_init_inf:
-            call_message = ""
-
-        log.info(f"Operation: {stack}{call_message}")
 
 
 class TypeContainerValidator:
@@ -132,8 +91,6 @@ class ContainerExpander:
     def expand_to_positions(st: InitState) -> InitState:
         len_inp_data = len(st.input_data)
         unique_id = str(uuid.uuid4())
-
-        # args: fetch by declared positions
         args_not_enough: Dict[int, int] = {}
         new_args = []
         for num, arg in enumerate(st.args_in, 1):
@@ -160,7 +117,6 @@ class ContainerExpander:
                 f"Total length of input tuple: {len_inp_data}."
             )
 
-        # kwargs: fetch by positions; seq=True is forbidden
         kwargs_not_enough: Dict[str, int] = {}
         seq_for_kwargs = []
         for name, arg in st.kwargs_in.items():
@@ -199,7 +155,6 @@ class ContainerExpander:
                 f"only be passed for positional arguments. "
                 f"Set seq=False (default)")
 
-        # strip placeholders
         st.input_data = tuple(x for x in st.input_data if x != unique_id)
         return st
 
@@ -209,12 +164,10 @@ class ParamMapBuilder:
 
     @staticmethod
     def build(st: InitState) -> InitState:
-        # enrich params (copy kind/default only)
         params: Dict[str, Param] = {}
         for name, p in list(st.params_wo_self.items()):
             params[name] = Param(kind=p.kind.name, def_val=p.default)
 
-        # update kinds by presence of kwargs (turn following params to KEYWORD_ONLY)
         kw_flag = False
         for name, param in params.items():
             if name in st.kwargs_in:
@@ -222,7 +175,6 @@ class ParamMapBuilder:
             if kw_flag and param.kind != "VAR_KEYWORD":
                 param.kind = "KEYWORD_ONLY"
 
-        # split to positional/keyword maps
         arg_params: Dict[str, Param] = {}
         kw_params: Dict[str, Param] = {}
         for name, param in params.items():
@@ -242,7 +194,6 @@ class ShapeValidator:
     """Validates shape: missing mandatory args/kwargs and unexpected leftovers."""
     @staticmethod
     def check_lengths(st: InitState) -> InitState:
-        # args: ensure enough mandatory and no leftovers without *args
         args = st.args_in
         var_positional = any(p.kind == "VAR_POSITIONAL" for
                              p in st.arg_params.values())
@@ -269,7 +220,6 @@ class ShapeValidator:
                 f"arg names: {mand_args_not_enough}"
             )
 
-        # kwargs: ensure only declared names (unless **kwargs) and all mandatory provided
         var_keyword = any(
             p.kind == "VAR_KEYWORD" for p in st.kw_params.values())
         not_used_kwargs = {name: val for name, val in st.kwargs_in.items()
@@ -301,7 +251,6 @@ class TypeValueAttacher:
     """Attaches (type, value, container-kind) info from passed args/kwargs."""
     @staticmethod
     def attach(st: InitState) -> InitState:
-        # positional
         arg_params = {n: a for n, a in st.arg_params.items() if
                       a.kind != "VAR_POSITIONAL"}
         args = st.args_in
@@ -310,7 +259,6 @@ class TypeValueAttacher:
             type_cont = is_it_arg_type(elem) or Parameter.empty
             el_type, value = get_type_value(elem)
             par.type, par.value, par.type_container = el_type, value, type_cont
-        # collect var-positional leftovers
         counter = 1
         while args:
             elem, args = get_first_element(args)
@@ -322,7 +270,6 @@ class TypeValueAttacher:
             counter += 1
         st.arg_params = arg_params
 
-        # keyword
         kw_params = {n: a for n, a in st.kw_params.items() if
                      a.kind != "VAR_KEYWORD"}
         for name, val in st.kwargs_in.items():
@@ -344,7 +291,6 @@ class RulesValidator:
     """Validates special rules: sequences-only-for-varpositional and mandatory-after-optional order."""
     @staticmethod
     def check_sequences_and_order(st: InitState) -> InitState:
-        # sequences only for VAR_POSITIONAL
         seq_for_args = []
         for name, param in st.arg_params.items():
             type_container = is_it_init_arg_type(param.type)
@@ -364,7 +310,6 @@ class RulesValidator:
                 f"Set seq=False (default)"
             )
 
-        # mandatory after optional prohibition
         err_containers: Dict[Union[str, int], str] = {}
         params_all = {**st.arg_params, **st.kw_params}
         opt_flag = False
@@ -395,7 +340,6 @@ class Binder:
     """Binds input_data items to parameters according to containers and sequence flags."""
     @staticmethod
     def bind_input_data(st: InitState) -> InitState:
-        # bind to positional map
         seq_num: Union[int, float] = 0
         new_map: Dict[Union[str, float, int], Param] = {}
         kind = "POSITIONAL_ONLY"
@@ -434,7 +378,6 @@ class Binder:
         st.input_data = input_data
         st.arg_params = new_map
 
-        # bind to keyword map
         for name, param in st.kw_params.items():
             type_container = is_it_arg_type(param.type)
             if type_container:
@@ -443,7 +386,6 @@ class Binder:
                     param, st.input_data, a_type)
                 st.kw_params[name] = param
 
-        # remaining data (for return)
         st.rem_data = st.input_data if st.input_data else None
         return st
 
@@ -477,7 +419,6 @@ class TypeChecker:
     """Checks runtime types according to containers and materializes values for args/kwargs."""
     @staticmethod
     def check(st: InitState) -> InitState:
-        # fill default value for positional params if value empty but default exists
         for _, param in st.arg_params.items():
             if (param.value == Parameter.empty and
                     param.def_val != Parameter.empty):
@@ -592,7 +533,6 @@ class InitCore:
         args: Tuple,
         kwargs: KwargsDict,
         input_data: Tuple,
-        hide_log_inf: HideLogInf = (False, False),
         check_type_strategy_all: bool = True,
         *,
         pipeline: Optional[Sequence[StepFn]] = None,
@@ -604,13 +544,9 @@ class InitCore:
             args_in=args,
             kwargs_in=kwargs,
             input_data=input_data,
-            hide_log_inf=hide_log_inf,
             check_type_strategy_all=check_type_strategy_all,
         )
-
-        res = PipelineRunner.run(st, pipeline=pipeline,
-                                 materializer=materializer)
-        CallLogger.emit(st.stack, res.args, res.kwargs, st.hide_log_inf)
+        res = PipelineRunner.run(st, pipeline=pipeline, materializer=materializer)
         return res.args, res.kwargs, res.rem_data
 
 

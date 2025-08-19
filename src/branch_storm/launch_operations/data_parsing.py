@@ -82,7 +82,8 @@ class ResultParser:
         return data, inst[0] if inst else None
 
     @staticmethod
-    def find_run_conf_from_rw_inst(rw_inst: Optional[Tuple[Dict[str, Any]]]) -> Optional[RunConfigurations]:
+    def find_run_conf_from_rw_inst(
+            rw_inst: Optional[Tuple[Dict[str, Any]]]) -> Optional[RunConfigurations]:
         if rw_inst:
             run_configs = []
             for one_block in rw_inst:

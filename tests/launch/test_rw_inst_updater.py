@@ -3,7 +3,8 @@ from typing import Any, Dict, Optional
 
 import pytest
 
-from src.branch_storm.default.rw_classes import Variables, Values, RunConfigurations
+from src.branch_storm.default.rw_classes import (Variables, Values,
+                                                 RunConfigurations)
 from src.branch_storm.default.rw_classes import RwInstUpdater
 
 
@@ -103,9 +104,11 @@ def test_rw_inst_updater(
     stack = "br1 -> br2"
     actual_result = RwInstUpdater()._get_updated(
         stack, current_rw_inst, rw_inst_from_option)
-    expected_result = RwInstUpdater._assign_stack_for_def_cl(stack, expected_result)
+    expected_result = RwInstUpdater._assign_stack_for_def_cl(
+        stack, expected_result)
 
     assert actual_result == expected_result
+
 
 
 def test_clean():
