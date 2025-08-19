@@ -32,8 +32,10 @@ from src.branch_storm.type_containers import MandatoryArgTypeContainer as m, Opt
             [(1,), (2,), (3,)]),
     ],
 )
-def test_create_init_data_sequence(len_obj, idata_for_all, idata_for_each, expected_result):
-    actual_result = create_init_data_sequence(len_obj, idata_for_all, idata_for_each)
+def test_create_init_data_sequence(
+        len_obj, idata_for_all, idata_for_each, expected_result):
+    actual_result = create_init_data_sequence(
+        len_obj, idata_for_all, idata_for_each)
 
     assert actual_result == expected_result
 
@@ -46,12 +48,14 @@ class TableNameStorage:
 def return_int_one() -> int: return 1
 def get_int_arg_and_plus_one(arg: int) -> int: return arg + 1
 
-def read(table_name, tns: TableNameStorage, init_data=100) -> Tuple[int, TableNameStorage]:
+def read(table_name, tns: TableNameStorage, init_data=100
+         ) -> Tuple[int, TableNameStorage]:
     tns.name = table_name
     return init_data, tns
 
 def transform(arg): return arg + 1
-def get_three_return_sum(arg1: int, arg2: int, arg3: int) -> int: return sum([arg1, arg2, arg3])
+def get_three_return_sum(arg1: int, arg2: int, arg3: int
+                         ) -> int: return sum([arg1, arg2, arg3])
 
 def write(arg: int, table_name: str) -> None:
     global actual_result, table_name_result
@@ -105,8 +109,8 @@ def test_process_few_branches_parallel_without_initial_data(get_table_branches):
         "api_to_json": [...],
         "json_to_parquet": [...],
         "trusted_to_enriched": br("trusted_to_enriched")[
-             obj(parallelize_without_result)(m("run_conf"),
-                                             table_branches, threads=m("ja.threads"))
+             obj(parallelize_without_result)(
+                 m("run_conf"), table_branches, threads=m("ja.threads"))
         ].rw_inst({"ja": ja})
     }
 
@@ -130,8 +134,9 @@ def test_process_few_branches_parallel_with_initial_data(get_table_branches):
         "api_to_json": [...],
         "json_to_parquet": [...],
         "trusted_to_enriched": br("trusted_to_enriched")[
-             obj(parallelize_without_result)(m("run_conf"),
-                                             table_branches, threads=m("ja.threads"), idata_for_each=(initial_data,))
+             obj(parallelize_without_result)(
+                 m("run_conf"), table_branches, threads=m("ja.threads"),
+                 idata_for_each=(initial_data,))
         ].rw_inst({"ja": ja})
     }       
 

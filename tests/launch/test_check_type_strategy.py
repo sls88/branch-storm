@@ -24,7 +24,7 @@ def test_check_type_strategy_all_by_default_neg():
     with pytest.raises(
             TypeError,
             match=re.escape(
-                "Operation: enriched_job -> receive_and_pass_all.\n"
+                "Operation: enriched_job -> receive_and_pass_all().\n"
                 "Argument mismatches with their types were found:\n"
                 "Len: 1; Arg type map: {1: (<class 'list'>, typing.List[int])}")):
         br("enriched_job")[
@@ -37,7 +37,7 @@ def test_check_type_strategy_nested_on_operation():
     with pytest.raises(
             TypeError,
             match=re.escape(
-                "Operation: enriched_job -> br1 -> receive_and_pass_all.\n"
+                "Operation: enriched_job -> br1 -> receive_and_pass_all().\n"
                 "Argument mismatches with their types were found:\n"
                 "Len: 1; Arg type map: {1: (<class 'list'>, typing.List[int])}")):
         br("enriched_job")[
@@ -53,7 +53,7 @@ def test_check_type_strategy_nested_on_branch():
     with pytest.raises(
             TypeError,
             match=re.escape(
-                "Operation: enriched_job -> br1 -> receive_and_pass_all.\n"
+                "Operation: enriched_job -> br1 -> receive_and_pass_all().\n"
                 "Argument mismatches with their types were found:\n"
                 "Len: 1; Arg type map: {1: (<class 'list'>, typing.List[int])}")):
         br("enriched_job")[
@@ -69,7 +69,7 @@ def test_check_type_strategy_nested_on_branch_receive():
     with pytest.raises(
             TypeError,
             match=re.escape(
-                "Operation: enriched_job -> receive_and_pass_all.\n"
+                "Operation: enriched_job -> receive_and_pass_all().\n"
                 "Argument mismatches with their types were found:\n"
                 "Len: 1; Arg type map: {1: (<class 'list'>, typing.List[int])}")):
         br("enriched_job")[

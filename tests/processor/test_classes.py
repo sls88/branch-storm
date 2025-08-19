@@ -72,7 +72,7 @@ def test_process_one_op_class_one_run_method_wo_meth():
     actual_result = (result[0].arg1, result[1])
 
     assert actual_result == (100, (1,))
-    assert actual_op_stack == 'OneRunMethodWOArgs(instance)'
+    assert actual_op_stack == 'OneRunMethodWOArgs()'
 
 
 def test_process_one_op_class_one_run_method_wo_args():
@@ -81,7 +81,7 @@ def test_process_one_op_class_one_run_method_wo_args():
     actual_op_stack = operation._opts.op_name
 
     assert actual_result == ((100, 5), (1, 2))
-    assert actual_op_stack == 'OneRunMethodWOArgs.method'
+    assert actual_op_stack == 'OneRunMethodWOArgs().method()'
 
 
 def test_process_one_op_class_one_run_method_bound():
@@ -90,7 +90,7 @@ def test_process_one_op_class_one_run_method_bound():
     actual_op_stack = operation._opts.op_name
 
     assert actual_result == ((1, 2), None)
-    assert actual_op_stack == "OneRunMethodBound.method"
+    assert actual_op_stack == "OneRunMethodBound().method()"
 
 
 def test_process_one_op_class_one_run_method_bound_with_arg_in_init():
@@ -149,7 +149,7 @@ def test_process_one_op_many_run_methods_bound_wo_args():
     actual_op_stack = operation._opts.op_name
 
     assert actual_result == (3, (1,))
-    assert actual_op_stack == 'ManyRunMethods.method3'
+    assert actual_op_stack == 'ManyRunMethods().method3()'
 
 
 def test_process_one_op_many_run_methods_static_wo_args():
@@ -166,7 +166,7 @@ def test_process_one_op_many_run_methods_return_init():
     actual_op_stack = operation._opts.op_name
 
     assert actual_result == (True, None)
-    assert actual_op_stack == 'ManyRunMethods(instance)'
+    assert actual_op_stack == 'ManyRunMethods()'
 
 
 def test_process_one_op_many_run_methods_use_instance_bound():
@@ -177,7 +177,8 @@ def test_process_one_op_many_run_methods_use_instance_bound():
     actual_op_stack = operation._opts.op_name
 
     assert actual_result == ((1, "2", True, 200), (100, 300))
-    assert actual_op_stack == 'ManyRunMethodsArgInInit(ext_instance).return_init_args'
+    assert actual_op_stack == ('ManyRunMethodsArgInInit('
+                               'instance).return_init_args()')
 
 
 def test_process_one_op_many_run_methods_use_instance_bound_method_from_string():
@@ -187,7 +188,7 @@ def test_process_one_op_many_run_methods_use_instance_bound_method_from_string()
     actual_op_stack = operation._opts.op_name
 
     assert actual_result == (3, (100,))
-    assert actual_op_stack == 'ManyRunMethods(ext_instance).method3'
+    assert actual_op_stack == 'ManyRunMethods(instance).method3()'
 
 
 def test_process_one_op_many_run_methods_use_instance_static_method_with_args_from_string():
@@ -197,4 +198,4 @@ def test_process_one_op_many_run_methods_use_instance_static_method_with_args_fr
     actual_op_stack = operation._opts.op_name
 
     assert actual_result == (100, None)
-    assert actual_op_stack == 'OneRunMethodStatic(ext_instance).method'
+    assert actual_op_stack == 'OneRunMethodStatic(instance).method()'
