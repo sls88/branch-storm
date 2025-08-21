@@ -1,9 +1,7 @@
 from dataclasses import dataclass
 from typing import Tuple
 
-import pytest
-
-from src.branch_storm.default.rw_classes import Values, Variables, BranchOptions
+from src.branch_storm.default.rw_classes import Values, Variables
 from src.branch_storm.operation import Operation as op, CallObject as obj
 from src.branch_storm.branch import Branch as br
 from src.branch_storm.type_containers import MandatoryArgTypeContainer as m
@@ -115,3 +113,41 @@ def test_assign_default_rw_class_vals_vars_via_nested_br_not_last():
     ].run()
 
     assert actual_result == (1, 1)
+
+
+def test_assign_branch_pass_next():
+    actual_result = br("trusted_to_enriched")[
+        br("br1")[
+            obj(return_one)(),
+            obj(get_and_pass_args)(m[int]),
+        ].assign("val.store_one"),
+        obj(get_and_pass_args)(m("val.store_one")[int])
+    ].run()
+
+    assert actual_result == (1,)
+
+
+def return_rw_inst() -> ThirdStorage: return ThirdStorage(third_val=100)
+def return_rw_inst_and_arg() -> Tuple[ThirdStorage, int]:
+    return ThirdStorage(third_val=100), 1
+
+
+def test_assign_pass_rw_inst_assign_field_distribution():
+    actual_result = br("trusted_to_enriched")[
+        br("br1")[
+            obj(return_one)(),
+            obj(return_rw_inst)(),
+        ].distribute_input_data.assign("val.store_one"),
+        obj(get_and_pass_args)(m("ts.third_val")[int], m("val.store_one")[int])
+    ].rw_inst({"ts": ThirdStorage()}).run()
+
+    assert actual_result == (100, 1)
+
+
+def test_assign_pass_rw_inst_assign_field():
+    actual_result = br("trusted_to_enriched")[
+        op(obj(return_rw_inst_and_arg)()).assign("ts", "val.store_one"),
+        obj(get_and_pass_args)(m("ts.third_val")[int], m("val.store_one")[int])
+    ].rw_inst({"ts": ThirdStorage()}).run()
+
+    assert actual_result == (100, 1)

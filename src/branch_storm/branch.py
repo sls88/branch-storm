@@ -121,7 +121,6 @@ class _BrShared:
             has_next: bool,
             curr_op: CurrOpType,
             run_conf: RunConfigurations,
-            op_stack: str,
             input_data: Optional[Any],
     ) -> Tuple[Optional[Any], Optional[Tuple], RunConfigurations]:
         if is_operation:
@@ -129,9 +128,6 @@ class _BrShared:
 
         result, rem_args, run_conf = curr_op.rw_inst(
             {"run_conf": run_conf}).run(input_data)
-        result = do_assign_result(
-            op_stack, run_conf.br_opt.assign,
-            result, run_conf.get_rw_inst())
         result, run_conf = ArgsDistributor.continue_distribution(
             run_conf, result, rem_args)
         result, run_conf = ArgsDistributor.stop_branch_distribution(
@@ -287,8 +283,7 @@ class BrIterativeProcessor(_BrShared, Processor):
                 return STOP_CONSTANT, None, run_conf
 
             result, rem_args, run_conf = BrIterativeProcessor._execute_step(
-                is_operation, has_next, curr_op, run_conf, op_stack, input_data
-            )
+                is_operation, has_next, curr_op, run_conf, input_data)
 
             (result, run_conf, stop_constant,
              skip_operation_constant) = data_separation(
@@ -343,8 +338,7 @@ class BrRecursiveProcessor(_BrShared, Processor):
         has_next = bool(remaining_ops)
 
         result, rem_args, run_conf = BrRecursiveProcessor._execute_step(
-            is_operation, has_next, curr_op, run_conf, op_stack, input_data
-        )
+            is_operation, has_next, curr_op, run_conf, input_data)
 
         (result, run_conf, stop_constant,
          skip_operation_constant) = data_separation(
@@ -391,7 +385,7 @@ class Branch(BaseBranchMethods):
         self._opts = replace(self._opts, rw_inst=self._opts.rw_inst + (rw_inst,))
         return self
 
-    def assign(self, *args: Tuple[str, ...]) -> "Branch":
+    def assign(self, *args: Union[str, Tuple[str, ...]]) -> "Branch":
         self._opts = replace(self._opts, assign=args)
         return self
 
@@ -439,8 +433,13 @@ class Branch(BaseBranchMethods):
         result, rem_args, run_conf = run_conf.br_opt.processor.run(
             self._operations, run_conf, input_data)
 
+        op_stack = run_conf.get_branch_stack()
+        result = do_assign_result(
+            op_stack, self._opts.assign,
+            result, run_conf.get_rw_inst())
+
         ArgsDistributor.rem_args_br_check(
-            run_conf.get_branch_stack(), rem_args, run_conf)
+            op_stack, rem_args, run_conf)
 
         run_conf.pop_stack()
         if self._is_it_first_branch:

@@ -10,28 +10,40 @@ def assign(*args, **kwargs):
         only instances of the special classes, with new values. No pos_args will be returned.
     """
     rw_instances: Dict[str, Type] = {}
-    args = list(args)
-    for par_str, dclass in kwargs.items():
-        splited_par = par_str.split(".")
-        rw_instances[dclass.__class__.__name__] = dclass
-        if len(splited_par) > 1:
-            result = dclass
-            last_rw_inst, last_field = None, None
-            for field in splited_par[1:]:
-                last_rw_inst = result
-                try:
-                    result = result.__getattribute__(field)
-                except AttributeError:
-                    if (isinstance(result, Variables) or
-                            isinstance(result, Values)):
-                        result = None
-                last_field = field
+    args_iter = iter(args)
+
+    def next_value():
+        try:
+            return next(args_iter)
+        except StopIteration:
+            raise ValueError(
+                "Not enough positional arguments "
+                "to assign fields to special classes")
+
+    for path, inst in kwargs.items():
+        cls_name = inst.__class__.__name__
+        parts = path.split(".")
+
+        if len(parts) == 1:
+            rw_instances[cls_name] = next_value()
+            continue
+
+        rw_instances[cls_name] = inst
+
+        owner = inst
+        last_owner = inst
+        last_field = None
+
+        for field in parts[1:]:
+            last_owner = owner
             try:
-                first_value = args.pop(0)
-            except IndexError:
-                raise ValueError("Not enough positional arguments "
-                                 "to assign fields to special classes")
+                owner = getattr(owner, field)
+            except AttributeError:
+                if isinstance(last_owner, (Variables, Values)):
+                    owner = None
+            last_field = field
 
-            last_rw_inst.__setattr__(last_field, first_value)
+        value = next_value()
+        last_owner.__setattr__(last_field, value)
 
-    return tuple(list(rw_instances.values()))
+    return tuple(rw_instances.values())
