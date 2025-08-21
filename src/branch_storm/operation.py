@@ -535,7 +535,9 @@ class CallChainPreviewer:
 
     @staticmethod
     def _render_type_token(tok: Any) -> str:
-        return repr(type(tok))
+        """Return just the class/type name (e.g., 'int', 'MyClass')."""
+        t = tok if isinstance(tok, type) else type(tok)
+        return getattr(t, "__name__", str(t))
 
     @classmethod
     def _compress_types(cls, tokens: Sequence[str]) -> str:
@@ -836,8 +838,8 @@ class BaseOperationMethods:
         self._opts = replace(self._opts, raise_err_cond=condition_func)
         return self
 
-    def assign(self, *args: str) -> "BaseOperationMethods":
-        self._opts = replace(self._opts, assign=tuple(args) if args else None)
+    def assign(self, *args: Union[str, Tuple[str, ...]]) -> "BaseOperationMethods":
+        self._opts = replace(self._opts, assign=args)
         return self
 
     def hide_log_inf(self, init_inf: bool = None, all_inf: bool = None) -> "BaseOperationMethods":
