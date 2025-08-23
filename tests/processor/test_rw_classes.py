@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from typing import Tuple
 
 import pytest
+
+from src.branch_storm.launch_operations.capture_manager import typed_alias
 from src.branch_storm.operation import Operation as op, CallObject as obj
 from src.branch_storm.type_containers import MandatoryArgTypeContainer as m
 
@@ -77,9 +79,8 @@ def get_and_pass_one_arg(arg: int) -> int:
 
 
 def test_process_one_object_get_rw_args_in_func():
-    aaa = AAA()
     operation = op(obj(get_and_pass_one_arg)(m("aa.second_field.bbb_field")[int]))
-    actual_result = operation.rw_inst({"aa": aaa}).run()
+    actual_result = operation.rw_inst({"aa": AAA()}).run()
 
     assert actual_result == (0, None)
 
@@ -96,9 +97,12 @@ class OneRunMethodBoundRW:
 class Storage:
     f: OneRunMethodBoundRW = OneRunMethodBoundRW(1)
 
+a = typed_alias("a", AAA)
+s = typed_alias("s", Storage)
 
 def test_process_one_object_get_rw_args_in_class():
-    operation = op(obj("s.f").method(arg2=m("a.second_field.bbb_field")))
+    operation = op(obj(s.f).method(arg2=m(
+        a.second_field.bbb_field)))
     actual_result = operation.rw_inst({"a": AAA(), "s": Storage()}).run()
     actual_op_stack = operation._opts.op_name
 

@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, Tuple, Union, Callable, Type
 
 from .constants import STOP_CONSTANT, SKIP_OPERATION_CONSTANT, INITIAL
 from .default.rw_classes import RunConfigurations, BranchOptions
+from .launch_operations.capture_manager import begin_capture, end_capture
 from .launch_operations.data_parsing import ResultParser
 from .launch_operations.errors import RemainingArgsFoundError, ConditionNotMetError
 from .utils.common import to_tuple
@@ -15,7 +16,7 @@ log = LoggerBuilder().build()
 
 
 BranchType = Union[Operation, "Branch", CallObject, Tuple[
-    Union[Operation, "Branch", CallObject], ...]]
+    Union[Operation, "Branch", CallObject], ...], Any]
 
 CurrOpType = Union["Branch", Operation]
 
@@ -372,6 +373,7 @@ class Branch(BaseBranchMethods):
         super().__init__()
         self._opts = BranchOptions(br_name=br_name, processor=processor)
         self._operations: Optional[Tuple] = None
+        self._cap_session = begin_capture()
 
     def end_chain_if(self, condition_func: Callable) -> "Branch":
         self._opts = replace(self._opts, end_chain_cond=condition_func)
@@ -414,6 +416,7 @@ class Branch(BaseBranchMethods):
 
     def __getitem__(self, operations: "BranchType") -> "Branch":
         self._operations = to_tuple(operations)
+        end_capture(self._cap_session)
         return self
 
     def __call__(self, *args: "BranchType", **kwargs) -> "Branch":

@@ -73,7 +73,7 @@ def write(arg) -> None:
 written_tables = []
 
 
-def test_process_two_branches_def_on_second_branch():
+def test_process_two_branches():
     actual_result = br("trusted_to_enriched_job")[
         br("dim_term")[
             op(obj(read)(table_name="dim_term")).op_name("f1"),

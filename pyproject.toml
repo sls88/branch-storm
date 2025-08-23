@@ -1,12 +1,17 @@
 [tool.poetry]
 name = "branch_storm"
-version = "1.0.3"
+version = "1.0.4"
 
 description = "branch_storm package"
 authors = ["Dmitrii Zhitin <3271707@gmail.com>"]
 repository = "https://github.com/sls88/branch-storm"
 
 packages = [{ include = "branch_storm", from = "src" }]
+
+include = [
+  "src/branch_storm/**/*.pyi",
+  "src/branch_storm/py.typed"
+]
 
 [tool.poetry.dependencies]
 python = ">=3.9"

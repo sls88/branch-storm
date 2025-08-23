@@ -1,3 +1,4 @@
+import inspect
 import logging
 from dataclasses import dataclass, replace, field
 from enum import Enum, auto
@@ -8,11 +9,9 @@ from .constants import PARAMETER_WAS_NOT_EXPANDED, SINGLE_RUN
 from .default.assign_results import assign
 from .default.rw_classes import RunConfigurations, RwInstUpdater
 from .launch_operations.errors import AssignmentError
-from .utils.common import to_tuple
+from .utils.common import to_tuple, extract_attrpath
 from .utils.options_utils import OptionsChecker
-from .initialization_core import (
-    InitCore, is_it_init_arg_type, is_it_arg_type, get_args_from_arg_type
-)
+from .initialization_core import InitCore, is_it_init_arg_type, is_it_arg_type
 from .utils.common import find_rw_inst
 from .utils.formatters import LoggerBuilder, error_formatter
 
@@ -163,8 +162,7 @@ class OpBuilder:
             (Operation is not None and isinstance(x, Operation)) or
             (Branch is not None and isinstance(x, Branch)) or
             isinstance(x, CallObject)
-            for x in items
-        )
+            for x in items)
 
     @staticmethod
     def _get_params_for_callable(callable_obj: Any) -> ParamsMap:
@@ -654,6 +652,11 @@ class CallObject:
         ManyRunMethods(1, m[int]).method3(5).property1["key"].other(7, x=8)
     """
     def __init__(self, cls_func_inst: Union[Callable, Type, Any]) -> None:
+        proxy_path = extract_attrpath(
+            cls_func_inst)
+        if proxy_path is not None:
+            cls_func_inst = proxy_path
+
         base_is_instance = (
             not isclass(cls_func_inst) and
             not isfunction(cls_func_inst) and
@@ -896,7 +899,7 @@ class BaseOperationMethods:
 
 
 class Operation(BaseOperationMethods):
-    def __init__(self, call_object: CallObject) -> None:
+    def __init__(self, call_object: Union[CallObject, Any]) -> None:
         super().__init__(call_object)
 
     def _pull_options(self) -> Tuple[Optional[Cond], Optional[Cond], bool]:
@@ -965,10 +968,27 @@ class Assigner:
             fields_for_assign: Tuple[str, ...],
             rw_inst: Dict[str, Any],
             result: Optional[Any]):
-        OptionsChecker.check_assign_option(stack, fields_for_assign, rw_inst)
+        fields_for_assign = Assigner._materialize_attrpaths_tuple(
+            fields_for_assign)
+        OptionsChecker.check_assign_option(
+            stack, fields_for_assign, rw_inst)
         Assigner._validate_result(stack, result, fields_for_assign)
         kw = {key: rw_inst[key.split(".")[0]] for key in fields_for_assign}
         return assign(*to_tuple(result), **kw)
+
+    @staticmethod
+    def _materialize_attrpaths_tuple(
+            items: Tuple[Any, ...]) -> Tuple[Any, ...]:
+        """
+        For each element in `items`, if it's an AttrProxy (per extract_attrpath),
+        replace it with its string path; otherwise keep the element as-is.
+        """
+
+        def _one(x: Any) -> Any:
+            path = extract_attrpath(x)
+            return x if path is None else path
+
+        return tuple(_one(x) for x in items)
 
     @staticmethod
     def _validate_result(
