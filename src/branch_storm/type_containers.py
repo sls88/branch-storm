@@ -1,12 +1,15 @@
 from inspect import Parameter
-from typing import TypeVar, Union, Optional, Tuple, Generic
+from typing import TypeVar, Union, Optional, Tuple, Generic, Any
 
+from .utils.common import extract_attrpath
 
 T = TypeVar('T')
 
 
 class MandatoryArgTypeContainer(Generic[T]):
-    def __init__(self, link_or_pos: Union[int, str] = None, seq: bool = False):
+    def __init__(self,
+                 link_or_pos: Union[int, str, Any] = None,
+                 seq: bool = False):
         self.link_or_pos = link_or_pos
         self.is_it_seq_ident_types = seq
         self.number_position: Optional[int] = None
@@ -16,6 +19,13 @@ class MandatoryArgTypeContainer(Generic[T]):
         self.par_value = Parameter.empty
 
     def _parse_link_or_pos(self) -> None:
+        proxy_path = extract_attrpath(
+            self.link_or_pos)
+        if proxy_path is not None:
+            self.param_link = proxy_path
+            self.link_or_pos = proxy_path
+            return
+
         if isinstance(self.link_or_pos, str):
             self.param_link = self.link_or_pos
         elif isinstance(self.link_or_pos, int):
