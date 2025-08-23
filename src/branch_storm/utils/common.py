@@ -1,6 +1,32 @@
 from typing import Any, Dict, Optional, Type, Tuple
 
 
+
+def extract_attrpath(x) -> Optional[str]:
+    if x is None:
+        return None
+
+    if getattr(x, "__bs_is_attrproxy__", False):
+        p = getattr(x, "path", None)
+        if isinstance(p, str):
+            return p
+
+    for name in (
+    "__bs_attrpath__", "__bs_attr_path__", "_bs_attrpath", "_bs_attr_path",
+    "__attrpath__", "attr_path", "path"):
+        if hasattr(x, name):
+            val = getattr(x, name)
+            if callable(val):
+                try:
+                    val = val()
+                except TypeError:
+                    pass
+            if isinstance(val, str):
+                return val
+
+    return None
+
+
 def find_rw_inst(string: str, rw_inst: Dict[str, Any]) -> Optional[Type]:
     """Return a special class if the string parameter is equal its alias.
 
