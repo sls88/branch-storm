@@ -374,6 +374,7 @@ class Branch(BaseBranchMethods):
         self._opts = BranchOptions(br_name=br_name, processor=processor)
         self._operations: Optional[Tuple] = None
         self._cap_session = begin_capture()
+        self._cap_active: bool = True
 
     def end_chain_if(self, condition_func: Callable) -> "Branch":
         self._opts = replace(self._opts, end_chain_cond=condition_func)
@@ -414,15 +415,22 @@ class Branch(BaseBranchMethods):
                 self._opts.raise_err_cond,
                 self._opts.force_call)
 
-    def __getitem__(self, operations: "BranchType") -> "Branch":
+    def _seal_operations(self, operations: "BranchType") -> "Branch":
+        """
+        Set the operations exactly once and end the capture session.
+        Both __getitem__ and __call__ route here.
+        """
         self._operations = to_tuple(operations)
-        end_capture(self._cap_session)
+        if self._cap_active:
+            end_capture(self._cap_session)
+            self._cap_active = False
         return self
 
-    def __call__(self, *args: "BranchType", **kwargs) -> "Branch":
-        if self._operations is None:
-            self._operations = to_tuple(args)
-        return self
+    def __getitem__(self, operations: "BranchType") -> "Branch":
+        return self._seal_operations(operations)
+
+    def __call__(self, *operations: "BranchType") -> "Branch":
+        return self._seal_operations(operations)
 
     def run(self, input_data: Optional[Any] = None) -> Optional[Any]:
         run_conf, input_data = get_run_config(self._opts.rw_inst, input_data)

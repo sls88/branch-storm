@@ -329,6 +329,41 @@ Two built‑in helpers run branches in threads:
 - `parallelize_without_result`
 - `parallelize_with_result_return`
 
+Example:
+```python
+from dataclasses import dataclass
+from branch_storm import Branch as br, CallObject as obj
+
+dim_tables = [
+    "dim_pale",
+    "dim_sale",
+    "dim_kale"
+]
+
+def get_dim_branch(table_name: str) -> Branch:
+    return br(table_name)[
+        obj(read)(table_name=table_name),
+        obj(transform)(m[str]),
+        obj(write)(m[str])
+    ].rw_inst({"if_req": Class()})
+
+@dataclass
+class JobArgs:
+    job_name: str = "job2"
+    threads: str = "max" # or string count from 1
+
+ja = JobArgs()
+
+table_branches = list(map(get_dim_branch, dim_tables))
+branches = {
+    "job1": [...],
+    "job2": br("job2")[
+         obj(parallelize_without_result)(
+             m("run_conf"), table_branches, threads=m("ja.threads"))
+    ].rw_inst({"ja": ja})
+}
+branches.get(ja.job_name).run()
+```
 They rely on `RunConfigurations` to carry call stacks across threads. If you implement
 custom parallelism, use `run_conf.get_renewed_self_instance()` to share a renewed instance
 between threads so stacks don’t merge accidentally.
