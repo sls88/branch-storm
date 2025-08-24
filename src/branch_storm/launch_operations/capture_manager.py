@@ -5,6 +5,7 @@ import pkgutil
 import threading
 from collections import defaultdict
 from contextvars import ContextVar
+from functools import wraps
 from types import FrameType, ModuleType
 from typing import Any, Callable, Dict, Set, Type, Union, Optional, Iterable, \
     Tuple, TypeVar, cast
@@ -195,20 +196,22 @@ _PATCHED_BY_GID: Dict[int, Dict[str, Any]] = {}
 def _make_deferred(fn_or_cls: Union[Callable, Type]) -> Callable:
     """
     Wrapper: if capture is ON -> return CallObject(fn_or_cls)(*args, **kwargs),
-    else call original.
+    else call original. Preserves metadata for doc tools and inspect().
     """
     cached = _WRAPPER_CACHE.get(id(fn_or_cls))
     if cached:
         return cached
 
+    @wraps(fn_or_cls)
     def _wrapper(*args, **kwargs):
         if _CAP_DEPTH.get() > 0:
             return CallObject(fn_or_cls)(*args, **kwargs)
         return fn_or_cls(*args, **kwargs)
 
-    _wrapper.__name__ = getattr(fn_or_cls, "__name__", "_deferred")
-    _wrapper.__qualname__ = getattr(fn_or_cls, "__qualname__", _wrapper.__name__)
-    _wrapper.__doc__ = getattr(fn_or_cls, "__doc__", None)
+    try:
+        _wrapper.__signature__ = inspect.signature(fn_or_cls)
+    except (ValueError, TypeError):
+        pass
 
     _WRAPPER_CACHE[id(fn_or_cls)] = _wrapper
     return _wrapper

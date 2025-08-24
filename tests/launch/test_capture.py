@@ -76,22 +76,24 @@ def write_par(arg: int, table_name: str) -> None:
     return None
 
 
-register_ops(
-    return_int_one, "tests.launch.two_test_func_in_module",
-    func_nested, summ_result, read,
-    write, calculate_deep_nested_branch,
-    OneRunMethodBound, parallelize_without_result,
-    read_par, transform_par, write_par, get_three_return_sum,
-    deep_func_nested,
-    exclude=["deep_func*"])
+@pytest.fixture
+def reg_ops() -> None:
+    register_ops(
+        return_int_one, "tests.launch.two_test_func_in_module",
+        func_nested, summ_result, read,
+        write, calculate_deep_nested_branch,
+        OneRunMethodBound, parallelize_without_result,
+        read_par, transform_par, write_par, get_three_return_sum,
+        deep_func_nested,
+        exclude=["deep_func*"])
 
 
-def test_is_registered():
+def test_is_registered(reg_ops):
     assert not is_registered(
         tests.launch.two_test_func_in_module.deep_func_nested)
 
 
-def test_run_one_operation():
+def test_run_one_operation(reg_ops):
     actual_result = br("enriched_job")[
         return_int_one()
     ].run()
@@ -99,7 +101,7 @@ def test_run_one_operation():
     assert actual_result == 1
 
 
-def test_run_nested_functions():
+def test_run_nested_functions(reg_ops):
     actual_result = br("enriched_job")[
         return_int_one(),
         op(get_int_arg_and_plus_one(m[int])).op_name("custom_func2_name"),
@@ -121,7 +123,7 @@ def test_run_nested_functions():
     assert actual_result == 9
 
 
-def test_process_two_branches():
+def test_process_two_branches(reg_ops):
     actual_result = br("trusted_to_enriched_job")[
         br("dim_term")[
             op(read(table_name="dim_term")).op_name("f1"),
@@ -143,7 +145,7 @@ def test_process_two_branches():
     written_tables = []
 
 
-def test_run_nested_functions_with_branch_break():
+def test_run_nested_functions_with_branch_break(reg_ops):
     actual_result = br("enriched_job")[
         return_int_one(),
         op(get_int_arg_and_plus_one(m[int])),
@@ -162,7 +164,7 @@ def test_run_nested_functions_with_branch_break():
     assert actual_result == 11
 
 
-def test_class_one_run_method_bound():
+def test_class_one_run_method_bound(reg_ops):
     actual_result = br("enriched_job")[
         OneRunMethodBound(100).method(m[int])
     ].run(1)
@@ -207,7 +209,7 @@ class JobArgs:
     threads: str = "2"
 
 
-def test_process_few_branches_parallel_with_initial_data(get_table_branches):
+def test_process_few_branches_parallel_with_initial_data(get_table_branches, reg_ops):
     ja = JobArgs()
     ja.threads = "max"
     initial_data = (1, 2, 3)
@@ -253,7 +255,7 @@ aaa = typed_alias("aaa", AAA)
 register_ops(get_aaa_bbb_fields)
 
 
-def test_attr_capture():
+def test_attr_capture(reg_ops):
     actual_result = br("test")[
         get_aaa_bbb_fields(
             m(aaa.aaa_field),

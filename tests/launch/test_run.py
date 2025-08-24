@@ -1,9 +1,10 @@
 import re
-from typing import Tuple, Any, Optional
+from typing import Tuple, Any, Optional, List
 
 import pytest
 
 from src.branch_storm.default.rw_classes import RunConfigurations
+from src.branch_storm.launch_operations.capture_manager import register_ops
 from src.branch_storm.operation import Operation as op, CallObject as obj
 from src.branch_storm.branch import Branch as br, BrRecursiveProcessor, run_operation, Processor
 from src.branch_storm.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
@@ -91,6 +92,45 @@ def test_process_two_branches():
     assert written_tables == [
         "Table: dim_term has been written.",
         "Table: dim_pale has been written."]
+    assert actual_result is None
+    written_tables = []
+
+
+def dim_term_br() -> br:
+    return br("dim_term")[
+            read(table_name="dim_term"),
+            transform(m[str]),
+            write(m[str]),
+        ]
+
+def dim_pale_kale_list_br() -> List[br]:
+    return [
+        br("dim_pale")[
+            read("dim_pale"),
+            transform(m[str]),
+            write(m[str]),
+        ],
+        br("dim_kale")[
+            read("dim_kale"),
+            obj(transform)(m[str]),
+            write(m[str]),
+        ]
+    ]
+
+
+def test_process_three_branches_tuple():
+    register_ops(read, transform, write)
+
+    actual_result = br("trusted_to_enriched_job")(
+        dim_term_br(),
+        *dim_pale_kale_list_br()
+    ).run()
+
+    global written_tables
+    assert written_tables == [
+        "Table: dim_term has been written.",
+        "Table: dim_pale has been written.",
+        "Table: dim_kale has been written."]
     assert actual_result is None
     written_tables = []
 
