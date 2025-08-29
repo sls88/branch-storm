@@ -1,4 +1,5 @@
 # Branch Storm — workflow orchestrator for Python
+## Build and run branching dataflows with a typed Python-embedded DSL.
 
 Branch Storm is an open‑source library for building **typed, readable, and debuggable**
 data pipelines as explicit **branches of operations**. It brings strong typing,
