@@ -1,12 +1,13 @@
 import sys
 from dataclasses import dataclass, field
+from functools import wraps
 from typing import Tuple, Optional
 
 import pytest
 
 import tests
 from src.branch_storm import RunConfigurations, parallelize_without_result, \
-    Values
+    Values, STOP_CONSTANT
 from src.branch_storm.operation import Operation as op, CallObject as obj
 from src.branch_storm.branch import Branch as br
 from src.branch_storm.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
@@ -251,11 +252,10 @@ def get_aaa_bbb_fields(arg1: int, arg2: int) -> Tuple[int, int]:
 
 
 
-aaa = typed_alias("aaa", AAA)
-register_ops(get_aaa_bbb_fields)
+def test_attr_capture():
+    aaa = typed_alias("aaa", AAA)
+    register_ops(get_aaa_bbb_fields)
 
-
-def test_attr_capture(reg_ops):
     actual_result = br("test")[
         get_aaa_bbb_fields(
             m(aaa.aaa_field),
@@ -263,3 +263,30 @@ def test_attr_capture(reg_ops):
     ].rw_inst({"aaa": AAA()}).run()
 
     assert actual_result == (15, 0)
+
+
+def test_decorator():
+    @dataclass
+    class JA:
+        err_mess: str = "error"
+
+    def catch_exception(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as exc:
+                return kwargs["job_args"].err_mess
+        return wrapper
+
+    @catch_exception
+    def wrapped_func(*, job_args: JA):
+        raise TypeError
+
+    ja = typed_alias("ja", JA)
+
+    actual_result = br("decorator_test")[
+        obj(wrapped_func)(job_args=m(ja)[JA])
+    ].rw_inst({"ja": JA()}).run()
+
+    assert actual_result == "error"

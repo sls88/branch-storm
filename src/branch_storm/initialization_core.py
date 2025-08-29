@@ -90,16 +90,16 @@ class ContainerExpander:
     @staticmethod
     def expand_to_positions(st: InitState) -> InitState:
         len_inp_data = len(st.input_data)
-        unique_id = str(uuid.uuid4())
+        unique_marker = object()
         args_not_enough: Dict[int, int] = {}
         new_args = []
         for num, arg in enumerate(st.args_in, 1):
             type_container = is_it_init_arg_type(arg)
             if type_container and getattr(arg, "number_position", None):
                 elem, st.input_data = replace_and_get_elem_by_pos(
-                    st.input_data, arg.number_position, unique_id
+                    st.input_data, arg.number_position, unique_marker
                 )
-                if elem == Parameter.empty and type_container == "mandatory":
+                if elem is Parameter.empty and type_container == "mandatory":
                     args_not_enough[num] = arg.number_position
                 arg.par_value = elem
             new_args.append(arg)
@@ -126,8 +126,8 @@ class ContainerExpander:
 
             if getattr(arg, "number_position", None):
                 elem, st.input_data = replace_and_get_elem_by_pos(
-                    st.input_data, arg.number_position, unique_id)
-                if elem == Parameter.empty and type_container == "mandatory":
+                    st.input_data, arg.number_position, unique_marker)
+                if elem is Parameter.empty and type_container == "mandatory":
                     kwargs_not_enough[name] = arg.number_position
                 arg.par_value = elem
                 st.kwargs_in[name] = arg
@@ -155,7 +155,7 @@ class ContainerExpander:
                 f"only be passed for positional arguments. "
                 f"Set seq=False (default)")
 
-        st.input_data = tuple(x for x in st.input_data if x != unique_id)
+        st.input_data = tuple(x for x in st.input_data if x is not unique_marker)
         return st
 
 
@@ -201,7 +201,7 @@ class ShapeValidator:
         mand_args_not_enough = []
         for name, param in st.arg_params.items():
             if param.kind == "POSITIONAL_ONLY":
-                if param.def_val == Parameter.empty and not args:
+                if param.def_val is Parameter.empty and not args:
                     mand_args_not_enough.append(name)
                 _, args = get_first_element(args)
 
@@ -234,7 +234,7 @@ class ShapeValidator:
 
         mand_kwargs_not_enough = [
             name for name, param in st.kw_params.items()
-            if (param.kind == "KEYWORD_ONLY" and param.def_val ==
+            if (param.kind == "KEYWORD_ONLY" and param.def_val is
                 Parameter.empty and name not in st.kwargs_in)]
 
         if mand_kwargs_not_enough:
@@ -420,8 +420,8 @@ class TypeChecker:
     @staticmethod
     def check(st: InitState) -> InitState:
         for _, param in st.arg_params.items():
-            if (param.value == Parameter.empty and
-                    param.def_val != Parameter.empty):
+            if (param.value is Parameter.empty and
+                    param.def_val is not Parameter.empty):
                 param.value = param.def_val
 
         kw_type_err = check_arg_type(
@@ -582,7 +582,7 @@ class SequenceConsumer:
                 arg=Parameter.empty, type=a_type,
                 kind=kind, type_container=type_container)
 
-        elem = () if elem == Parameter.empty else (elem,)
+        elem = () if elem is Parameter.empty else (elem,)
         input_data = (*elem, *input_data)
         return input_data, new_param_map, seq_num
 
@@ -623,8 +623,8 @@ def fill_params(params: Dict[Union[str, float, int], Param]
                 ) -> Dict[Union[str, float, int], Param]:
     for name, param in params.items():
         if is_it_init_arg_type(param.type):
-            if param.type.par_value != Parameter.empty:
-                if param.type.par_type == Parameter.empty:
+            if param.type.par_value is not Parameter.empty:
+                if param.type.par_type is Parameter.empty:
                     param.value = param.type.par_value
                     param.type = Parameter.empty
                 else:
@@ -640,10 +640,10 @@ def fill_def_values(
     args_not_enough: Dict[Union[str, int], str] = {}
     new_params: Dict[Union[str, float, int], Param] = {}
     for name, param in params.items():
-        arg_empty_cond = (param.type != Parameter.empty and
-                          param.arg == Parameter.empty)
+        arg_empty_cond = (param.type is not Parameter.empty and
+                          param.arg is Parameter.empty)
         if (arg_empty_cond and param.type_container == "optional" and
-                param.def_val != Parameter.empty):
+                param.def_val is not Parameter.empty):
             param.value = param.def_val
             param.type = Parameter.empty
             new_params[name] = param
@@ -654,11 +654,11 @@ def fill_def_values(
               param.kind == "VAR_POSITIONAL"):
             continue
         elif ((arg_empty_cond and param.type_container == "optional" and
-               param.def_val == Parameter.empty) or
+               param.def_val is Parameter.empty) or
               (arg_empty_cond and param.type_container == "mandatory")):
             args_not_enough[name] = param.type_container
-        elif (param.value == Parameter.empty and
-              param.def_val != Parameter.empty):
+        elif (param.value is Parameter.empty and
+              param.def_val is not Parameter.empty):
             param.value = param.def_val
         new_params[name] = param
     return args_not_enough, new_params
@@ -694,7 +694,7 @@ def is_it_init_arg_type(arg: Any) -> Optional[str]:
 def get_args_from_arg_type(
         type_container: ArgTypeContainer) -> Optional[Type]:
     if isinstance(type_container, MandatoryArgTypeContainer):
-        if type_container.par_type == Parameter.empty:
+        if type_container.par_type is Parameter.empty:
             return None
         return type_container.par_type
     if "__args__" in type_container.__dict__:
@@ -732,7 +732,7 @@ def check_arg_type(
 ) -> Dict[Union[str, int], Tuple]:
     type_err: Dict[Union[str, int], Tuple] = {}
     for name, param in params.items():
-        if param.arg != Parameter.empty:
+        if param.arg is not Parameter.empty:
             strategy = (
                 CollectionCheckStrategy.ALL_ITEMS) if (
                 check_type_strategy_all) else (
@@ -749,7 +749,7 @@ def fill_values(
         params: Dict[Union[str, float, int], Param]
 ) -> Dict[Union[str, float, int], Param]:
     for name, param in params.items():
-        if param.arg != Parameter.empty:
+        if param.arg is not Parameter.empty:
             param.value = param.arg
             params[name] = param
     return params
