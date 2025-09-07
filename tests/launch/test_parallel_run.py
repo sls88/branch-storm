@@ -3,7 +3,9 @@ from typing import Tuple, Optional
 
 import pytest
 
-from src.branch_storm.default.parallelism import create_init_data_sequence, parallelize_without_result
+from src.branch_storm import STOP_CONSTANT
+from src.branch_storm.default.parallelism import create_init_data_sequence, \
+    parallelize_without_result, parallelize_with_result_return
 from src.branch_storm.operation import Operation as op, CallObject as obj
 from src.branch_storm.branch import Branch as br, Branch
 from src.branch_storm.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
@@ -57,11 +59,14 @@ def transform(arg): return arg + 1
 def get_three_return_sum(arg1: int, arg2: int, arg3: int
                          ) -> int: return sum([arg1, arg2, arg3])
 
-def write(arg: int, table_name: str) -> None:
+def write(arg: int, table_name: str) -> str:
     global actual_result, table_name_result
     actual_result += [arg]
     table_name_result += [table_name]
-    return None
+
+    if table_name == 'dim_sale':
+        return STOP_CONSTANT
+    return table_name
 
 
 @dataclass
@@ -91,7 +96,8 @@ def dim_branches(table_name: str) -> Branch:
             obj(transform)(m("val.int_storage")[int])
         ].distribute_input_data,
         obj(get_three_return_sum)(m[int], m[int], m[int]),
-        obj(write)(m[int], table_name=m("tns.name")[str])
+        op(obj(write)(m[int], table_name=m("tns.name")[str])
+           ).assign("val.table_name")
     ].rw_inst({"tns": TableNameStorage()})
 
 
@@ -134,17 +140,20 @@ def test_process_few_branches_parallel_with_initial_data(get_table_branches):
         "api_to_json": [...],
         "json_to_parquet": [...],
         "trusted_to_enriched": br("trusted_to_enriched")[
-             obj(parallelize_without_result)(
+             obj(parallelize_with_result_return)(
                  m("run_conf"), table_branches, threads=m("ja.threads"),
                  idata_for_each=(initial_data,))
         ].rw_inst({"ja": ja})
     }       
 
     exec_result = objects_for_processing.get(ja.job_name).run()
+    val_result = [res[2].get_rw_inst()['val'].table_name for res in
+                  exec_result]
 
     global actual_result, table_name_result
     assert sorted(actual_result) == [12, 15, 18]
     assert sorted(table_name_result) == ['dim_kale', 'dim_pale', 'dim_sale']
-    assert exec_result is None
+    assert sorted(val_result) == ['dim_kale', 'dim_pale', STOP_CONSTANT]
+
     actual_result = []
     table_name_result = []

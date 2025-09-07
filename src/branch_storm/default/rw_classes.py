@@ -1,5 +1,5 @@
 from abc import ABC
-from dataclasses import dataclass, Field, field
+from dataclasses import dataclass
 from typing import Optional, Tuple, Any, Dict, List, Type, Callable, Union
 
 from ..constants import INITIAL_RUN, DEFAULT_BRANCH_OPTIONS, INITIAL
@@ -7,16 +7,27 @@ from ..utils.options_utils import OptionsChecker
 
 
 _ALLOWED_SCALARS = (str, int, float, complex, range,
-                    bool, bytes, bytearray, memoryview)
+                    bool, bytes, memoryview)
 
 def _is_dunder(name: str) -> bool:
     return name.startswith("__") and name.endswith("__")
 
 
+def _is_immutable(value: Any) -> bool:
+    """Recursive immutability check for allowed atoms + (tuple|frozenset) nesting."""
+    if isinstance(value, _ALLOWED_SCALARS):
+        return True
+    if isinstance(value, tuple):
+        return all(_is_immutable(v) for v in value)
+    if isinstance(value, frozenset):
+        return all(_is_immutable(v) for v in value)
+    return False
+
+
 @dataclass
 class Values:
     """One time write then read only built-in immutable pos_args or pos_args structures:
-    str, int, float, complex, tuple, range, frozenset, bool, bytes, bytearray, memoryview
+    str, int, float, complex, tuple, range, frozenset, bool, bytes, memoryview
 
     (tuple and frozenset can contain nested structures of each other's types)
     Writing other types will throw an exception.
@@ -25,49 +36,45 @@ class Values:
     """
     _op_stack_name: str = ""
 
-    def __setattr__(self, key, value):
-        if key in self.__dict__ and key != "_op_stack_name":
-            start_mess = f"Operation: {self._op_stack_name}. " if \
-            self._op_stack_name else ""
-            raise ValueError(
-                f"{start_mess}The value cannot be overwritten. "
-                f"The class is intended for single-write and read use.")
-        if isinstance(value, Field):
-            dcl_field = value
-            value = dcl_field.default
-            self.__dataclass_fields__[key] = dcl_field
-        else:
-            self.__check_data_structure(value)
-            self.__dataclass_fields__[key] = field(default=value)
-        self.__dict__[key] = value
+    def _set_op_stack(self, name: str) -> None:
+        """Allow external code to set operation stack name for error context."""
+        object.__setattr__(self, "_op_stack_name", name or "")
 
-    def __check_data_structure(self, value) -> None:
-        if isinstance(value, (frozenset, tuple)):
-            for pos in value:
-                self.__check_data_structure(pos)
-            return None
-        if isinstance(value, _ALLOWED_SCALARS):
-            return None
-        start_mess = f"Operation: {self._op_stack_name}. " if \
-            self._op_stack_name else ""
-        raise TypeError(
-            f"{start_mess}The pos_args or pos_args "
-            f"structure being written has types other than: "
-            f"str, int, float, complex, tuple, range, frozenset, "
-            f"bool, bytes, bytearray, memoryview.")
+    def _get_new_instance(self) -> "Values":
+        """
+        Return a new Values instance. Reuses references
+        to already stored fields with the same names.
+        """
+        new = Values(self._op_stack_name)
+        for k, v in self.__dict__.items():
+            if k.startswith("_"):
+                continue
+            object.__setattr__(new, k, v)
+        return new
 
-    def __getattribute__(self, item):
-        if item in ("_op_stack_name",
-                    "_Values__check_data_structure") or _is_dunder(item):
-            return super().__getattribute__(item)
+    def __setattr__(self, key: str, value: Any) -> None:
+        if key == "_op_stack_name":
+            object.__setattr__(self, key, value)
+            return
 
-        dct = super().__getattribute__("__dict__")
-        if item not in dct:
-            op = dct.get("_op_stack_name", "")
-            start = f"Operation: {op}. " if op else ""
-            raise AttributeError(f"{start}No such attribute in Values")
+        if key in self.__dict__:
+            start = f"Operation: {self._op_stack_name}. " if self._op_stack_name else ""
+            raise ValueError(f"{start}The value cannot be overwritten. "
+                             f"The class is intended for single-write and read use.")
 
-        return super().__getattribute__(item)
+        if not _is_immutable(value):
+            start = f"Operation: {self._op_stack_name}. " if self._op_stack_name else ""
+            raise TypeError(f"{start}The pos_args or pos_args structure being written has types other than: "
+                            f"str, int, float, complex, tuple, range, frozenset, bool, bytes, memoryview.")
+
+        object.__setattr__(self, key, value)
+
+    def __getattr__(self, item: str) -> Any:
+        if _is_dunder(item):
+            raise AttributeError
+        op = getattr(self, "_op_stack_name", "")
+        start = f"Operation: {op}. " if op else ""
+        raise AttributeError(f"{start}No such attribute in Values")
 
 
 @dataclass
@@ -75,26 +82,26 @@ class Variables:
     """Write, rewrite and read any pos_args structures."""
     _op_stack_name: str = ""
 
-    def __setattr__(self, key, value):
-        if isinstance(value, Field):
-            dcl_field = value
-            value = dcl_field.default
-            self.__dataclass_fields__[key] = dcl_field
-        else:
-            self.__dataclass_fields__[key] = field(default=value)
-        self.__dict__[key] = value
+    def _set_op_stack(self, name: str) -> None:
+        object.__setattr__(self, "_op_stack_name", name or "")
 
-    def __getattribute__(self, item):
-        if item == "_op_stack_name" or _is_dunder(item):
-            return super().__getattribute__(item)
+    def _get_new_instance(self) -> "Variables":
+        new = Variables(self._op_stack_name)
+        for k, v in self.__dict__.items():
+            if k == "_op_stack_name":
+                continue
+            object.__setattr__(new, k, v)
+        return new
 
-        dct = super().__getattribute__("__dict__")
-        if item not in dct:
-            op = dct.get("_op_stack_name", "")
-            start = f"Operation: {op}. " if op else ""
-            raise AttributeError(f"{start}No such attribute in Variables")
+    def __setattr__(self, key: str, value: Any) -> None:
+        object.__setattr__(self, key, value)
 
-        return super().__getattribute__(item)
+    def __getattr__(self, item: str) -> Any:
+        if _is_dunder(item):
+            raise AttributeError
+        op = getattr(self, "_op_stack_name", "")
+        start = f"Operation: {op}. " if op else ""
+        raise AttributeError(f"{start}No such attribute in Variables")
 
 
 class RwInstUpdater:
@@ -190,7 +197,7 @@ class RwInstUpdater:
             stack: str, updated_cl: Dict[str, Any]) -> Dict[str, Any]:
         for alias, inst in updated_cl.items():
             if isinstance(inst, (Values, Variables)):
-                inst._op_stack_name = stack
+                inst._set_op_stack(stack)
                 updated_cl[alias] = inst
         return updated_cl
 
@@ -438,9 +445,17 @@ class RunConfigurations:
         return {**base_map, "run_conf": self}
 
     def get_renewed_self_instance(self) -> 'RunConfigurations':
-        new_rw_inst = RunConfigurations._renew_def_rw_inst(
-            self.operation_stack, self.get_rw_inst())
-        return new_rw_inst["run_conf"]
+        """Return a new instance RunConfigurations with:
+           - copied field values (shallow),
+           - the SAME opt_stack items except the LAST one,
+           - a NEW last BranchOptions wired to a NEW rw_inst map,
+             where Values/Variables are renewed via _get_new_instance(),
+             and run_conf points to this new RunConfigurations.
+        """
+        stack = self.operation_stack or self.get_branch_stack()
+        current_map = self.get_rw_inst()
+        renewed_map = RunConfigurations._renew_def_rw_inst(stack, current_map)
+        return renewed_map["run_conf"]
 
     def pop_stack(self):
         new_delay_return = self._pop_delayed_return()
@@ -458,7 +473,7 @@ class RunConfigurations:
         if last_delay_return is not None:
             prev_delayed_return = self.opt_stack[-2].delayed_return
             if prev_delayed_return is not None:
-                return *prev_delayed_return, *last_delay_return
+                return (*prev_delayed_return, *last_delay_return)
 
     def _pop_rw_inst(self) -> Tuple:
         penult_map = dict(self.opt_stack[-2].rw_inst)
@@ -505,35 +520,68 @@ class RunConfigurations:
             stack: str,
             old_rw_inst: Dict[str, Any],
             rw_class: Type) -> Dict[str, Any]:
-        for alias, rw_inst in old_rw_inst.items():
-            if isinstance(rw_inst, rw_class):
-                new_inst = rw_class()
-                new_inst._op_stack_name = stack
-                for field, value in rw_inst.__dict__.items():
-                    setattr(new_inst, field, value)
-                return {alias: new_inst}
+        """Renew ALL default instances of rw_class found in old_rw_inst."""
+        renewed: Dict[str, Any] = {}
+        for alias, inst in old_rw_inst.items():
+            if isinstance(inst, rw_class):
+                new_inst = inst._get_new_instance()
+                new_inst._set_op_stack(stack)
+                renewed[alias] = new_inst
+        return renewed
 
     @staticmethod
     def _renew_run_conf(old_rw_inst: Dict[str, Any]) -> Dict[str, Any]:
-        for alias, rw_inst in old_rw_inst.items():
-            if isinstance(rw_inst, RunConfigurations):
-                new_inst = RunConfigurations()
-                for field, value in rw_inst.__dict__.items():
-                    setattr(new_inst, field, value)
-                new_opt_inst = new_inst.br_opt.get_new_instance()
-                new_inst.br_opt = new_opt_inst
-                return {alias: new_inst}
+        for alias, inst in old_rw_inst.items():
+            if isinstance(inst, RunConfigurations):
+                old_rc: RunConfigurations = inst
+                new_rc = RunConfigurations()
+                for field, value in old_rc.__dict__.items():
+                    setattr(new_rc, field, value)
+
+                if old_rc.opt_stack and len(old_rc.opt_stack) > 0:
+                    old_last_opt = old_rc.opt_stack[-1]
+                else:
+                    old_last_opt = old_rc.br_opt
+
+                new_last_opt = old_last_opt.get_new_instance()
+
+                prev = old_rc.opt_stack[:-1] if (
+                        old_rc.opt_stack and len(
+                    old_rc.opt_stack) > 0) else tuple()
+                new_rc.opt_stack = (*prev, new_last_opt)
+                new_rc.br_opt = new_last_opt
+
+                return {alias: new_rc}
+        return {}
 
     @staticmethod
-    def _renew_def_rw_inst(stack: str, rw_inst: Dict[str, Any]) -> Dict[str, Any]:
-        if rw_inst:
-            return {
-                **rw_inst,
-                **RunConfigurations._renew_def_instance(stack, rw_inst, Values),
-                **RunConfigurations._renew_def_instance(stack, rw_inst, Variables),
-                **RunConfigurations._renew_run_conf(rw_inst),
-            }
-        return rw_inst
+    def _renew_def_rw_inst(
+            stack: str, rw_inst: Dict[str, Any]) -> Dict[str, Any]:
+        """Return a NEW rw_inst map where:
+           - Values/Variables are renewed via _get_new_instance()
+           - run_conf is replaced with a NEW RunConfigurations (with new last BranchOptions)
+           - new_rc.br_opt.rw_inst points to the returned map (self-consistent)
+        """
+        if not rw_inst:
+            return rw_inst
+
+        base = dict(rw_inst)
+
+        renewed = {**base}
+        renewed.update(RunConfigurations._renew_def_instance(
+            stack, base, Values))
+        renewed.update(RunConfigurations._renew_def_instance(
+            stack, base, Variables))
+
+        run_conf_map = RunConfigurations._renew_run_conf(base)
+        if run_conf_map:
+            renewed.update(run_conf_map)
+
+            new_rc: RunConfigurations = run_conf_map.get("run_conf")
+            renewed["run_conf"] = new_rc
+            new_rc.br_opt.rw_inst = renewed
+
+        return renewed
 
     def __post_init__(self):
         br_opt = BranchOptions()

@@ -68,8 +68,8 @@ def test_renew_rw_inst():
             'last_op_stack': 'INITIAL RUN',
             'operation_stack': 'Initial -> OP',
             'stack_divider': ' -> '},
-        'val': {'_op_stack_name': '', 'val_field1': 1, 'val_field2': 2},
-        'var': {'_op_stack_name': '', 'var_field1': 1},
+        'val': {'_op_stack_name': 'st -> ack', 'val_field1': 1, 'val_field2': 2},
+        'var': {'_op_stack_name': 'st -> ack', 'var_field1': 1},
         'st': {'t_class': ThirdStorage(third_val=3)}}
 
     assert base_id["val"] != actual_result_id["val"]
