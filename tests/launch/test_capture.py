@@ -7,7 +7,7 @@ import pytest
 
 import tests
 from src.branch_storm import RunConfigurations, parallelize_without_result, \
-    Values, STOP_CONSTANT
+    Values
 from src.branch_storm.operation import Operation as op, CallObject as obj
 from src.branch_storm.branch import Branch as br
 from src.branch_storm.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
