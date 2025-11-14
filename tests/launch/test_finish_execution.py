@@ -317,6 +317,19 @@ def test_return_stop_constant_in_nested_branch():
     counter = 0
 
 
+def test_raise_err_after_end_execution():
+    actual_result = br("br1")[
+            op(obj(transform)(m[int])).end_chain_if(lambda x: x == 1),
+            op(obj(transform)(m[int])).raise_err_if(
+                lambda x: not isinstance(x, int))
+        ].run(1)
+
+    global counter
+    assert actual_result is None
+    assert counter == 0
+    counter = 0
+
+
 def test_hide_log_inf():
     actual_result = br("trusted_to_enriched")[
         op(obj(read)()),
