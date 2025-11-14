@@ -141,6 +141,9 @@ class _BrShared:
             input_data: Optional[Any],
             raise_err_flag: bool,
             raise_err_cond: Callable) -> None:
+        if input_data in (STOP_CONSTANT, SKIP_OPERATION_CONSTANT):
+            return
+
         if raise_err_flag:
             types = []
             if isinstance(input_data, Tuple
