@@ -319,10 +319,10 @@ def test_return_stop_constant_in_nested_branch():
 
 def test_raise_err_after_end_execution():
     actual_result = br("br1")[
-            op(obj(transform)(m[int])).end_chain_if(lambda x: x == 1),
+            op(obj(transform)(m[int])).end_chain_if(lambda x: x is None),
             op(obj(transform)(m[int])).raise_err_if(
-                lambda x: not isinstance(x, int))
-        ].run(1)
+                lambda x: x.y)
+        ].run()
 
     global counter
     assert actual_result is None

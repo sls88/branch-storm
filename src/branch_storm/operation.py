@@ -1,4 +1,3 @@
-import inspect
 import logging
 from dataclasses import dataclass, replace, field
 from enum import Enum, auto
@@ -886,16 +885,6 @@ class BaseOperationMethods:
                 )
         check_callable(op_stack, "end_chain_if", end_chain_cond)
         check_callable(op_stack, "raise_err_if", raise_err_cond)
-
-    @staticmethod
-    def _get_end_conditions_flags(
-        end_chain_cond: Optional[Cond],
-        raise_err_cond: Optional[Cond],
-        input_data: Optional[Any] = None
-    ) -> Tuple[bool, bool]:
-        end_chain_flag = bool(end_chain_cond(input_data)) if end_chain_cond is not None else False
-        raise_err_flag = bool(raise_err_cond(input_data)) if raise_err_cond is not None else False
-        return end_chain_flag, raise_err_flag
 
 
 class Operation(BaseOperationMethods):
