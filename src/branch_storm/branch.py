@@ -141,7 +141,8 @@ class _BrShared:
             input_data: Optional[Any],
             raise_err_flag: bool,
             raise_err_cond: Callable) -> None:
-        if input_data in (STOP_CONSTANT, SKIP_OPERATION_CONSTANT):
+        if input_data is STOP_CONSTANT or input_data is \
+                SKIP_OPERATION_CONSTANT:
             return
 
         if raise_err_flag:
@@ -205,6 +206,10 @@ class _BrShared:
             end_chain_cond: Callable,
             raise_err_cond: Callable,
             input_data: Optional[Any] = None) -> Tuple[bool, bool]:
+        if input_data is STOP_CONSTANT or input_data is \
+                SKIP_OPERATION_CONSTANT:
+            return False, False
+
         end_chain_flag = end_chain_cond(input_data) \
             if end_chain_cond is not None else False
         raise_err_flag = raise_err_cond(input_data) \
