@@ -261,8 +261,8 @@ def parallelize_with_result_return(
       >>> branches = [br("left")[...], br("right")[...]]
       >>> args = create_init_data_sequence(
       ...     len(branches),
-      ...     idata_for_all=("prefix",),                  # common argument
-      ...     idata_for_each=([10, 20], ["x", "y"])       # per-branch streams
+      ...     idata_for_all=("prefix",),
+      ...     idata_for_each=([10, 20], ["x", "y"])
       ... )
       >>> parallelize_with_result_return(
       ...     rc, branches, threads="2",

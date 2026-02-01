@@ -189,9 +189,9 @@ def test_incorrect_burn_rem_args_option():
             'Operation: enriched_job -> return_1().\nIt is not possible to '
             'simultaneously')):
         br("enriched_job")[
-            op(obj(return_1)()),
+            op(obj(return_1)()).distribute_input_data,
             op(obj(return_1)()).burn_rem_args
-        ].distribute_input_data.run()
+        ].run()
 
 
 def test_incorrect_burn_rem_args_option_in_single_operation():

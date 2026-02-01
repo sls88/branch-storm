@@ -1,4 +1,4 @@
-from .branch import Branch, get_run_config, data_separation, run_operation, Processor, BrRecursiveProcessor, \
+from .branch import Branch, get_run_config, data_separation, Processor, BrRecursiveProcessor, \
     BrIterativeProcessor, _BrShared, BaseBranchMethods, ArgsDistributor
 from .constants import STOP_CONSTANT, SKIP_OPERATION_CONSTANT, INITIAL_RUN, INITIAL, SINGLE_RUN, \
     DEFAULT_BRANCH_OPTIONS
@@ -23,7 +23,7 @@ from .utils.options_utils import OptionsChecker
 
 __all__ = [
     "Branch", "get_run_config", "data_separation",
-    "run_operation", "Processor", "BrRecursiveProcessor",
+    "Processor", "BrRecursiveProcessor",
     "BrIterativeProcessor", "_BrShared", "BaseBranchMethods",
     "ArgsDistributor", "STOP_CONSTANT", "INITIAL_RUN",
     "INITIAL", "SINGLE_RUN", "DEFAULT_BRANCH_OPTIONS",
