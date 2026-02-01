@@ -6,7 +6,8 @@ import pytest
 from src.branch_storm.default.rw_classes import RunConfigurations
 from src.branch_storm.launch_operations.capture_manager import register_ops
 from src.branch_storm.operation import Operation as op, CallObject as obj
-from src.branch_storm.branch import Branch as br, BrRecursiveProcessor, run_operation, Processor
+from src.branch_storm.branch import Branch as br, BrRecursiveProcessor, \
+    Processor, _BrShared
 from src.branch_storm.type_containers import MandatoryArgTypeContainer as m, OptionalArgTypeContainer as opt
 
 
@@ -267,10 +268,12 @@ class CustomProcessor(Processor):
                 run_conf = operation._update_stack(run_conf)
                 run_conf = operation._update_rw_inst(run_conf)
                 next_operations_exist = True if operations else False
-                result, rem_args, run_conf = run_operation(
-                    next_operations_exist, result, operation, run_conf)
+                result, rem_args, run_conf = _BrShared._execute_step(
+                    True, next_operations_exist,
+                    operation, run_conf, result)
             else:
-                result, rem_args, run_conf = operation.rw_inst({"run_conf": run_conf}).run(result)
+                result, rem_args, run_conf = operation.rw_inst(
+                    {"run_conf": run_conf}).run(result)
         return result, rem_args, run_conf
 
 
@@ -370,3 +373,26 @@ def test_custom_processor_in_nested_branches():
     assert actual_result is None
     written_tables = []
     custom_proc_run_counter = 0
+
+
+def return_tuple_two_int() -> Tuple[int, int]:
+    return 1, 2
+
+
+def test_pass_two_args_in_parallel():
+    actual_result = br("trusted_to_enriched_job")[
+        obj(return_tuple_two_int)(),
+        br("write")[
+            op(obj(write)(m[int])).distribute_input_data,
+            br("sub_write")[
+                op(obj(pass_one_arg)(m[int])).end_chain_if(
+                    lambda x: x == 3),
+                obj(write)(m[int])
+            ]
+        ].take_all_args,
+    ].run()
+
+    global written_tables
+    assert actual_result == (None, None)
+    assert written_tables == ['1 has been written.', '2 has been written.']
+    written_tables = []

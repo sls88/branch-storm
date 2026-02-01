@@ -52,28 +52,6 @@ def data_separation(
     return input_data, run_conf, stop_constant, second_stop_constant
 
 
-def run_operation(
-        has_next: bool,
-        input_data: Any,
-        curr_op: Operation,
-        run_conf: RunConfigurations) -> Tuple[Any, Any, RunConfigurations]:
-    curr_op._set_run_conf(run_conf)
-    result, rem_args = curr_op.run(input_data)
-
-    run_conf = ArgsDistributor.open_distribution(curr_op, run_conf)
-    result, run_conf = ArgsDistributor.continue_distribution(
-        run_conf, result, rem_args)
-    result, run_conf = ArgsDistributor.stop_distribution(
-        has_next, curr_op,
-        run_conf, result)
-
-    op_stack = run_conf.operation_stack
-    ArgsDistributor.rem_args_op_check(op_stack, rem_args, run_conf)
-    run_conf.last_op_stack = op_stack
-
-    return result, rem_args, run_conf
-
-
 class Processor(ABC):
     @staticmethod
     @abstractmethod
@@ -91,13 +69,13 @@ class _BrShared:
             curr_op: Any,
             run_conf: RunConfigurations
     ) -> Tuple[CurrOpType, RunConfigurations, bool, str]:
-        BrRecursiveProcessor._curr_op_check(curr_op, run_conf.last_op_stack)
-        curr_op = BrRecursiveProcessor._wrap_call_object(curr_op)
-        is_operation = BrRecursiveProcessor._get_is_it_operation_flag(curr_op)
+        _BrShared._curr_op_check(curr_op, run_conf.last_op_stack)
+        curr_op = _BrShared._wrap_call_object(curr_op)
+        is_operation = _BrShared._get_is_it_operation_flag(curr_op)
 
         if is_operation:
             run_conf = curr_op._update_stack(run_conf)
-            BrRecursiveProcessor._check_options(curr_op, run_conf)
+            _BrShared._check_options(curr_op, run_conf)
             run_conf = curr_op._update_rw_inst(run_conf)
 
         return curr_op, run_conf, is_operation, run_conf.operation_stack
@@ -109,9 +87,9 @@ class _BrShared:
             op_stack: str
     ) -> Tuple[Callable, Callable, bool, bool, bool]:
         end_chain_cond, raise_err_cond, force_call = curr_op._pull_options()
-        BrRecursiveProcessor._check_passed_conditions(
+        _BrShared._check_passed_conditions(
             op_stack, end_chain_cond, raise_err_cond)
-        end_flag, raise_flag = BrRecursiveProcessor._get_end_conditions_flags(
+        end_flag, raise_flag = _BrShared._get_end_conditions_flags(
             end_chain_cond, raise_err_cond, input_data
         )
         return end_chain_cond, raise_err_cond, force_call, end_flag, raise_flag
@@ -122,17 +100,22 @@ class _BrShared:
             has_next: bool,
             curr_op: CurrOpType,
             run_conf: RunConfigurations,
-            input_data: Optional[Any],
+            input_data: Optional[Any]
     ) -> Tuple[Optional[Any], Optional[Tuple], RunConfigurations]:
         if is_operation:
-            return run_operation(has_next, input_data, curr_op, run_conf)
+            curr_op._set_run_conf(run_conf)
+            result, rem_args = curr_op.run(input_data)
+        else:
+            result, rem_args, run_conf = curr_op.rw_inst(
+                {"run_conf": run_conf}).run(input_data)
 
-        result, rem_args, run_conf = curr_op.rw_inst(
-            {"run_conf": run_conf}).run(input_data)
+        run_conf = ArgsDistributor.open_distribution(curr_op, run_conf)
         result, run_conf = ArgsDistributor.continue_distribution(
             run_conf, result, rem_args)
-        result, run_conf = ArgsDistributor.stop_branch_distribution(
-            has_next, run_conf, result)
+        result, run_conf = ArgsDistributor.stop_distribution(
+            has_next, curr_op, run_conf, result)
+
+        run_conf.last_op_stack = run_conf.operation_stack
         return result, rem_args, run_conf
 
     @staticmethod
@@ -228,14 +211,11 @@ class _BrShared:
 
     @staticmethod
     def _get_is_it_operation_flag(curr_op: CurrOpType) -> bool:
-        return True if isinstance(curr_op, Operation) else False
+        return isinstance(curr_op, Operation)
 
     @staticmethod
     def _curr_op_check(curr_op: Any, last_op_stack: str) -> None:
-        if not any([
-            isinstance(curr_op, Branch),
-            isinstance(curr_op, Operation),
-            isinstance(curr_op, CallObject)]):
+        if not isinstance(curr_op, (Branch, Operation, CallObject)):
             raise TypeError(
                 f"Last successful operation: "
                 f"{last_op_stack}.\n"
@@ -248,6 +228,26 @@ class _BrShared:
         if isinstance(curr_op, CallObject):
             return Operation(curr_op)
         return curr_op
+
+    @staticmethod
+    def _handle_entrypoint_result(result: Optional[Any],
+            rem_args: Optional[Tuple],
+            run_conf: RunConfigurations, ) -> Tuple[
+        Optional[Any], Optional[Tuple], RunConfigurations]:
+        br_opt = run_conf.br_opt
+
+        if br_opt.entrypoint_processed:
+            return result, rem_args, run_conf
+
+        if (not br_opt.take_all_args) and (rem_args is not None):
+            br_opt.entrypoint_rem_args = rem_args
+            rem_args = None
+
+            if ArgsDistributor.is_collecting(run_conf):
+                result = ()
+
+        br_opt.entrypoint_processed = True
+        return result, rem_args, run_conf
 
 
 class BrIterativeProcessor(_BrShared, Processor):
@@ -293,6 +293,12 @@ class BrIterativeProcessor(_BrShared, Processor):
 
             result, rem_args, run_conf = BrIterativeProcessor._execute_step(
                 is_operation, has_next, curr_op, run_conf, input_data)
+
+            result, rem_args, run_conf = BrIterativeProcessor._handle_entrypoint_result(
+                result, rem_args, run_conf)
+
+            ArgsDistributor.rem_args_check(
+                is_operation, op_stack, rem_args, run_conf)
 
             (result, run_conf, stop_constant,
              skip_operation_constant) = data_separation(
@@ -349,6 +355,12 @@ class BrRecursiveProcessor(_BrShared, Processor):
         result, rem_args, run_conf = BrRecursiveProcessor._execute_step(
             is_operation, has_next, curr_op, run_conf, input_data)
 
+        result, rem_args, run_conf = BrIterativeProcessor._handle_entrypoint_result(
+            result, rem_args, run_conf)
+
+        ArgsDistributor.rem_args_check(
+            is_operation, op_stack, rem_args, run_conf)
+
         (result, run_conf, stop_constant,
          skip_operation_constant) = data_separation(
             result, run_conf)
@@ -370,7 +382,7 @@ class BaseBranchMethods:
 
     @staticmethod
     def _remove_stop_constant(result: Any) -> Any:
-        if result in (STOP_CONSTANT, SKIP_OPERATION_CONSTANT):
+        if result is STOP_CONSTANT or result is SKIP_OPERATION_CONSTANT:
             return None
         return result
 
@@ -411,6 +423,21 @@ class Branch(BaseBranchMethods):
     @property
     def distribute_input_data(self) -> "Branch":
         self._opts = replace(self._opts, distribute_input_data=True)
+        return self
+
+    @property
+    def stop_distribution(self) -> "Branch":
+        self._opts = replace(self._opts, stop_distribution=True)
+        return self
+
+    @property
+    def burn_rem_args(self) -> "Branch":
+        self._opts = replace(self._opts, burn_rem_args=True)
+        return self
+
+    @property
+    def take_all_args(self) -> "Branch":
+        self._opts = replace(self._opts, take_all_args=True)
         return self
 
     @property
@@ -457,8 +484,14 @@ class Branch(BaseBranchMethods):
             op_stack, self._opts.assign,
             result, run_conf.get_rw_inst())
 
+        if run_conf.br_opt.entrypoint_rem_args is not None:
+            rem_args = run_conf.br_opt.entrypoint_rem_args
+
+        if self._opts.burn_rem_args:
+            rem_args = None
+
         ArgsDistributor.rem_args_br_check(
-            op_stack, rem_args, run_conf)
+            op_stack, rem_args, self._is_it_first_branch)
 
         run_conf.pop_stack()
         if self._is_it_first_branch:
@@ -468,97 +501,131 @@ class Branch(BaseBranchMethods):
 
 class ArgsDistributor:
     @staticmethod
+    def is_distribution_active(run_conf: "RunConfigurations") -> bool:
+        """
+        Historical semantics:
+        opened => delayed_return == ()
+        active => delayed_return is not None
+        stopped => delayed_return == None
+
+        So "active" here really means "distribution is not stopped".
+        """
+        return run_conf.br_opt.delayed_return is not None
+
+    @staticmethod
     def open_distribution(
-            curr_op: Operation,
-            run_conf: RunConfigurations) -> RunConfigurations:
-        if run_conf.br_opt.delayed_return is None and (
-                run_conf.br_opt.distribute_input_data or
-                curr_op._opts.distribute_input_data):
-            run_conf.br_opt.delayed_return = ()
-            run_conf.br_opt.distribute_input_data = True
+        curr_op: Union["Operation", "Branch"],
+        run_conf: "RunConfigurations",
+    ) -> "RunConfigurations":
+        br_opt = run_conf.br_opt
+
+        if ArgsDistributor._is_stopped(run_conf) and curr_op._opts.distribute_input_data:
+            br_opt.delayed_return = ()
+            br_opt.distribute_input_data = True
+
         return run_conf
 
     @staticmethod
     def continue_distribution(
-            run_conf: RunConfigurations,
-            result: Any,
-            rem_args: Any) -> Tuple[Tuple, RunConfigurations]:
-        if run_conf.br_opt.delayed_return is not None and \
-                run_conf.br_opt.distribute_input_data:
-            if not run_conf.br_opt.delayed_return:
-                run_conf.br_opt.delayed_return = to_tuple(result)
-                result = () if rem_args is None else rem_args
-            else:
-                run_conf.br_opt.delayed_return = (
-                    *run_conf.br_opt.delayed_return, *to_tuple(result))
-                result = () if rem_args is None else rem_args
-        return result, run_conf
+        run_conf: "RunConfigurations",
+        result: Any,
+        rem_args: Any,
+    ) -> Tuple[Any, "RunConfigurations"]:
+        if not ArgsDistributor.is_collecting(run_conf):
+            return result, run_conf
+
+        br_opt = run_conf.br_opt
+        delayed = br_opt.delayed_return
+
+        if not delayed and rem_args is None and isinstance(
+                result, tuple) and len(result) > 1:
+            return result, run_conf
+
+        br_opt.delayed_return = ArgsDistributor._append_delayed(
+            delayed, result)
+        forwarded = () if rem_args is None else rem_args
+        return forwarded, run_conf
 
     @staticmethod
     def stop_distribution(
-            has_next: bool,
-            curr_op: Operation,
-            run_conf: RunConfigurations, result: Any
-    ) -> Tuple[Any, RunConfigurations]:
-        delayed_return = run_conf.br_opt.delayed_return
-        if curr_op._opts.stop_distribution or (
-                not has_next and delayed_return is not None):
-            result = delayed_return[0] if len(
-                delayed_return) == 1 else delayed_return
-            run_conf.br_opt.delayed_return = None
-            run_conf.br_opt.distribute_input_data = False
-        return result, run_conf
+        has_next: bool,
+        curr_op: Union["Operation", "Branch"],
+        run_conf: "RunConfigurations",
+        result: Any,
+    ) -> Tuple[Any, "RunConfigurations"]:
+        br_opt = run_conf.br_opt
 
-    @staticmethod
-    def stop_branch_distribution(
-            has_next: bool,
-            run_conf: RunConfigurations, result: Any
-    ) -> Tuple[Any, RunConfigurations]:
-        delayed_return = run_conf.br_opt.delayed_return
-        if not has_next and delayed_return is not None:
-            result = delayed_return[0] if len(
-                delayed_return) == 1 else delayed_return
-            run_conf.br_opt.delayed_return = None
-            run_conf.br_opt.distribute_input_data = False
+        should_stop = (
+            curr_op._opts.stop_distribution
+            or (not has_next and
+                ArgsDistributor.is_distribution_active(run_conf)))
+        if not should_stop:
+            return result, run_conf
+
+        delayed = br_opt.delayed_return
+
+        if delayed is None:
+            br_opt.delayed_return = None
+            br_opt.distribute_input_data = False
+            return result, run_conf
+
+        result = delayed[0] if len(delayed) == 1 else delayed
+        br_opt.delayed_return = None
+        br_opt.distribute_input_data = False
         return result, run_conf
 
     @staticmethod
     def rem_args_br_check(
-            stack: str, rem_args: Optional[Tuple],
-            run_conf: RunConfigurations) -> None:
-        prev_open_dist_flag = run_conf.opt_stack[-2].distribute_input_data
-        if rem_args is not None and not prev_open_dist_flag:
-            rem_args_hidden = [type(arg) for arg in rem_args]
+        stack: str,
+        rem_args: Optional[Tuple],
+        is_it_first_branch: bool,
+    ) -> None:
+        if is_it_first_branch and rem_args is not None:
             raise RemainingArgsFoundError(
-                f"\nBranch: {stack}.\n"
-                f"After executing the branch, data "
-                f"was detected that was not involved\n"
-                f"in the initialization/call. Len "
-                f"{len(rem_args)}; Their types: {rem_args_hidden}\n"
-                f"returning such arguments from a branch "
-                f"is possible only when the distribution\n"
-                f"was opened on the previous one. "
-                f"If such arguments are no longer needed,\n"
-                f"then you can use the burn_rem_args "
-                f"option on the last operation.")
+                ArgsDistributor._build_remaining_args_error(
+                    "Branch", stack, rem_args))
 
     @staticmethod
-    def rem_args_op_check(
-            stack: str, rem_args: Optional[Tuple],
-            run_conf: RunConfigurations) -> None:
-        prev_open_dist_flag = run_conf.opt_stack[-2].distribute_input_data
-        if rem_args is not None and not any([
-                run_conf.br_opt.distribute_input_data,
-                prev_open_dist_flag]):
-            rem_args_hidden = [type(arg) for arg in rem_args]
-            raise RemainingArgsFoundError(
-                f"Operation: {stack}.\n"
-                f"After executing the operation, data "
-                f"was detected that was not involved\n"
-                f"in the initialization/call. Len "
-                f"{len(rem_args)}; Their types: {rem_args_hidden}\n"
-                f"If this is planned, use the burn_rem_args "
-                f"option or use the distribution operation\n"
-                f"(distributed_input_data ... stop_distribution options).\n"
-                f"After stopping the distribution, the "
-                f"remaining arguments are also not allowed.")
+    def rem_args_check(
+        is_operation: bool,
+        stack: str,
+        rem_args: Optional[Tuple],
+        run_conf: "RunConfigurations",
+    ) -> None:
+        if rem_args is None:
+            return
+        if ArgsDistributor.is_distribution_active(run_conf):
+            return
+
+        kind = "Operation" if is_operation else "Branch"
+        raise RemainingArgsFoundError(
+            ArgsDistributor._build_remaining_args_error(kind, stack, rem_args))
+
+    @staticmethod
+    def _is_stopped(run_conf: "RunConfigurations") -> bool:
+        return not ArgsDistributor.is_distribution_active(run_conf)
+
+    @staticmethod
+    def is_collecting(run_conf: "RunConfigurations") -> bool:
+        return (ArgsDistributor.is_distribution_active(run_conf) and
+                run_conf.br_opt.distribute_input_data)
+
+    @staticmethod
+    def _append_delayed(delayed_return: Tuple, value: Any) -> Tuple:
+        return (*delayed_return, *to_tuple(value))
+
+    @staticmethod
+    def _build_remaining_args_error(kind: str, stack: str, rem_args: Tuple) -> str:
+        rem_args_hidden = [type(arg) for arg in rem_args]
+        kind_l = kind.lower()
+        return (
+            f"{kind}: {stack}.\n"
+            f"After executing the {kind_l}, data was "
+            f"detected that was not involved\n"
+            f"in the initialization/call. "
+            f"Len {len(rem_args)}; Their types: {rem_args_hidden}\n"
+            f"If this is planned, use the burn_rem_args "
+            f"option or use the distribution operation\n"
+            f"(distributed_input_data ... stop_distribution options).\n"
+            f"After stopping the distribution, the "
+            f"remaining arguments are also not allowed.")

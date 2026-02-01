@@ -68,7 +68,8 @@ def read_par(
     tns.name = table_name
     return init_data, tns
 
-def transform_par(arg): return arg + 1
+def transform_par(arg):
+    return arg + 1
 
 def write_par(arg: int, table_name: str) -> None:
     global actual_result, table_name_result
@@ -190,10 +191,10 @@ def dim_branches(table_name: str) -> br:
         transform_par(m[int]),
         op(transform_par(m[int])).assign(val.int_storage),
         br("transformation_branch")[
-            transform_par(m(val.int_storage)[int]),
+            op(transform_par(m(val.int_storage)[int])).distribute_input_data,
             obj(transform_par)(m(val.int_storage)[int]),
             transform_par(m(val.int_storage)[int])
-        ].distribute_input_data,
+        ],
         get_three_return_sum(m[int], m[int], m[int]),
         write_par(m[int], table_name=m(tns.name)[str])
     ].rw_inst({"tns": TableNameStorage()})

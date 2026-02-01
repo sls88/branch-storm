@@ -91,10 +91,10 @@ def dim_branches(table_name: str) -> Branch:
         obj(transform)(m[int]),
         op(obj(transform)(m[int])).assign("val.int_storage"),
         br("transformation_branch")[
-            obj(transform)(m("val.int_storage")[int]),
+            op(obj(transform)(m("val.int_storage")[int])).distribute_input_data,
             obj(transform)(m("val.int_storage")[int]),
             obj(transform)(m("val.int_storage")[int])
-        ].distribute_input_data,
+        ],
         obj(get_three_return_sum)(m[int], m[int], m[int]),
         op(obj(write)(m[int], table_name=m("tns.name")[str])
            ).assign("val.table_name")

@@ -135,9 +135,9 @@ def return_rw_inst_and_arg() -> Tuple[ThirdStorage, int]:
 def test_assign_pass_rw_inst_assign_field_distribution():
     actual_result = br("trusted_to_enriched")[
         br("br1")[
-            obj(return_one)(),
+            op(obj(return_one)()).distribute_input_data,
             obj(return_rw_inst)(),
-        ].distribute_input_data.assign("val.store_one"),
+        ].assign("val.store_one"),
         obj(get_and_pass_args)(m("ts.third_val")[int], m("val.store_one")[int])
     ].rw_inst({"ts": ThirdStorage()}).run()
 
