@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "branch_storm"
-version = "1.0.9"
+version = "1.1.0"
 
 description = "branch_storm package"
 authors = ["Dmitrii Zhitin <3271707@gmail.com>"]

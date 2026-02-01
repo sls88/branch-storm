@@ -155,8 +155,8 @@ class OpBuilder:
             from .operation import Operation
             from .branch import Branch
         except Exception:
-            Operation = None  # type: ignore[assignment]
-            Branch = None     # type: ignore[assignment]
+            Operation = None
+            Branch = None
         return all(
             (Operation is not None and isinstance(x, Operation)) or
             (Branch is not None and isinstance(x, Branch)) or
@@ -775,7 +775,6 @@ class BaseOperationMethods:
         OptionsChecker.check_name(self._opts.op_name, last_op_stack)
 
     def _get_op_name(self, stack: str) -> None:
-        self._check_name(stack)
         self._check_name(stack)
 
         canonical = self._obj._call_chain._canonical_op_name()

@@ -75,7 +75,7 @@ def test_add_options_stack():
         run_conf.br_opt.delayed_return)
 
     assert actual_first_add == ((False, True), True, False, None)
-    assert actual_second_add == ((False, True), False, False, ())
+    assert actual_second_add == ((False, True), False, False, None)
 
 
 def test_add_rw_inst():
@@ -185,5 +185,5 @@ def test_pop_stack():
     assert actual_opt_check_after_second_pop == True
 
     assert actual_delayed_return_before_pop == (2, 3)
-    assert actual_delayed_return_after_pop == (1, 2, 3)
+    assert actual_delayed_return_after_pop == (1,)
     assert actual_delayed_return_after_second_pop is None

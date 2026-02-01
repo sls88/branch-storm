@@ -96,6 +96,8 @@ When you place containers inside the call, Branch Storm will **pull** values fro
 incoming data tuple and/or from **rw‑instances** (see below), validate their types
 (via `typeguard`), and pass them to the operation:
 
+Note: a tuple passed as `input_data` is treated as a **flow of positional args**. To pass a tuple as a **single value**, wrap it: `input_data=((1, 2, 3),)`.
+
 ```python
 from typing import Tuple
 from branch_storm import Branch as br, Operation as op, CallObject as obj, \
@@ -141,10 +143,17 @@ The processor passed to the root branch once
 will process all operations and nested branches inside it, unless 
 changed to nested.
 
-**Execution order:** If a branch is nested in a chain of operations, then when
-the queue reaches it, it will be executed first
-(all nested operations inside it sequentially) and return the result and any unconsumed arguments.
-They can be distributed to other branches or operations.
+**Execution order:** A nested branch is executed as a **single atom** in the parent chain.
+A Branch consumes input from the parent flow only through its **first internal atom** (its entry point).
+By default, any incoming args not consumed by that entry point are kept as the Branch `rem_args` on the parent level
+(they are not forwarded deeper inside the branch). If you want a branch to keep consuming the flow across multiple
+internal atoms, enable `.take_all_args` on that branch.
+
+**Distribution scope:** `.distribute_input_data` / `.stop_distribution` on a Branch affect distribution **between sibling atoms on the current level**
+(the level where the branch is placed). They do not automatically enable distribution inside nested branches; use flags on atoms inside the branch.
+
+**Top-level contract:** the root branch returns only `result` from `.run()`. If there are remaining args at the root boundary and they were not
+burned and not fully consumed by distribution, `RemainingArgsFoundError` is raised.
 
 Options can also be applied to branches.
 
@@ -194,6 +203,10 @@ Containers “eat” some incoming data. What about the rest? You control it exp
 - `.distribute_input_data` — keep passing remaining args to subsequent steps.
 - `.stop_distribution` — stop distributing at this point and return accumulated results.
 - `.burn_rem_args` — intentionally **drop** the remaining args at this point.
+
+Notes:
+- Distribution is **per level** (between sibling atoms). A nested branch has its own internal distribution, driven only by flags inside that branch.
+- Distribution accumulates results via `to_tuple(result)`, so tuple results are flattened. To keep a tuple as a single item, wrap it: `((a, b),)`.
 
 Example:
 
@@ -385,7 +398,7 @@ between threads so stacks don’t merge accidentally.
   - `.assign("val.field1", "var.field2")`
   - `typed_alias("cfg", JobConfig)` → use `cfg.table` inside containers.
 - Flow control:
-  - `.distribute_input_data`, `.stop_distribution`, `.burn_rem_args`
+  - `.distribute_input_data`, `.stop_distribution`, `.burn_rem_args`, `.take_all_args` (Branch)
   - `.end_chain_if(pred)`, `.raise_err_if(pred)`, `.force_call`
   - `.check_type_strategy_all(True|False)`
   - `.hide_log_inf(init_inf=..., all_inf=...)`
