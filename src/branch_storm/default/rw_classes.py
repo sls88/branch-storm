@@ -388,8 +388,13 @@ class BranchOptions(BranchOptInterface):
     check_type_strategy_all: Optional[bool] = None
     rw_inst: Union[Dict[str, Any], Tuple[Dict[str, Any], ...]] = ()
     distribute_input_data: bool = False
+    take_all_args: bool = False
+    stop_distribution: bool = False
+    burn_rem_args: bool = False
     force_call: bool = False
     delayed_return: Optional[Tuple] = None
+    entrypoint_processed: bool = False
+    entrypoint_rem_args: Optional[Tuple] = None
 
     def get_new_instance(self) -> "BranchOptions":
         new_inst = BranchOptions()
@@ -457,23 +462,21 @@ class RunConfigurations:
         renewed_map = RunConfigurations._renew_def_rw_inst(stack, current_map)
         return renewed_map["run_conf"]
 
-    def pop_stack(self):
-        new_delay_return = self._pop_delayed_return()
+    def pop_stack(self) -> None:
+        if len(self.opt_stack) < 2:
+            return
+
+        parent_opt = self.opt_stack[-2]
+
         new_rw_inst_items = self._pop_rw_inst()
         new_map = dict(new_rw_inst_items)
 
         self.opt_stack = self.opt_stack[:-1]
         self.br_opt = self.opt_stack[-1]
-        if new_delay_return:
-            self.br_opt.delayed_return = new_delay_return
+
         self.br_opt.rw_inst = new_map
 
-    def _pop_delayed_return(self) -> Optional[Tuple]:
-        last_delay_return = self.br_opt.delayed_return
-        if last_delay_return is not None:
-            prev_delayed_return = self.opt_stack[-2].delayed_return
-            if prev_delayed_return is not None:
-                return (*prev_delayed_return, *last_delay_return)
+        self.br_opt.delayed_return = parent_opt.delayed_return
 
     def _pop_rw_inst(self) -> Tuple:
         penult_map = dict(self.opt_stack[-2].rw_inst)
@@ -504,11 +507,6 @@ class RunConfigurations:
 
         if self.br_opt.check_type_strategy_all is None:
             self.br_opt.check_type_strategy_all = prev_opt.check_type_strategy_all
-
-        if prev_opt.distribute_input_data and not self.br_opt.distribute_input_data:
-            self.br_opt.distribute_input_data = True
-
-        self.br_opt.delayed_return = None if prev_opt.delayed_return is None else ()
 
     def _set_br_name(self) -> None:
         OptionsChecker.check_name(self.br_opt.br_name, self.last_op_stack)

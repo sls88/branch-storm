@@ -30,6 +30,22 @@ def read_arg_return_one(arg: int): return 1
 def transform_return_none(arg: int): return None
 def return_stop_constant(arg: int) -> Union[Any, str]:
     return STOP_CONSTANT
+def ret_1_2_3(): return 1, 2, 3
+
+
+def test_stop_in_distribution_window():
+    actual_result = br("br")[
+        obj(ret_1_2_3)(),
+        op(obj(transform)(m[int])).distribute_input_data,
+        op(obj(transform)(m[int])).end_chain_if(lambda x: x == (2, 3)),
+        op(obj(transform)(m[int])),
+        obj(write)(m[int])
+    ].run()
+
+    assert actual_result is None
+    global counter
+    assert counter == 0
+    counter = 0
 
 
 def test_stop_after_stop_constant():
